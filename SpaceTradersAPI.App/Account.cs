@@ -57,11 +57,11 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts)
 
     public class Endpoints(Account account)
     {
-        public IAsyncEnumerable<Responses.Agent> ListPublicAgents()
-        => account.SendAsyncEnumerable<Responses.Agent>(HttpMethod.Get, "/agents");
+        public IAsyncEnumerable<Models.V2.Agent> ListPublicAgents()
+        => account.SendAsyncEnumerable<Models.V2.Agent>(HttpMethod.Get, "/agents");
 
-        public Task<Responses.ServerStatus> GetServerStatus()
-        => account.SendAsyncRaw<Responses.ServerStatus>(HttpMethod.Get, "/");
+        public Task<Models.V2.ServerStatus> GetServerStatus()
+        => account.SendAsyncRaw<Models.V2.ServerStatus>(HttpMethod.Get, "/");
     }
 }
 
@@ -79,9 +79,9 @@ public record class AccountItem(string Name, string Token)
 
     public class Endpoints(AccountItem account)
     {
-        public async Task<Responses.RegisterAgent> RegisterAgent(string symbol, string faction)
+        public async Task<Models.V2.RegisterAgent> RegisterAgent(string symbol, string faction)
         {
-            var registration = await account.Accounts.SendAsyncData<Responses.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol": "{{symbol}}",\n  "faction": "{{faction}}"}""");
+            var registration = await account.Accounts.SendAsyncData<Models.V2.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol": "{{symbol}}",\n  "faction": "{{faction}}"}""");
             account.Agents.Add(new(registration.Agent.Symbol, registration.Token) { Accounts = account.Accounts });
             File.WriteAllText(account.Accounts.File.FullName, JsonSerializer.Serialize(account.Accounts, new JsonSerializerOptions(JsonSerializerDefaults.General) { WriteIndented = true, }));
             return registration;
@@ -100,8 +100,8 @@ public record class AccountAgent(string Name, string Token)
 
     public class Endpoints(AccountAgent agent)
     {
-        public Task<Responses.Agent> GetAgent()
-        => agent.Accounts.SendAsyncData<Responses.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken);
+        public Task<Models.V2.Agent> GetAgent()
+        => agent.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken);
 
         public IAsyncEnumerable<Models.V2.Ship> ListMyShips()
         => agent.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships", agent.AgentToken);
