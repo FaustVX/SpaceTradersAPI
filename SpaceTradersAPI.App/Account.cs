@@ -42,10 +42,23 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts)
     public async Task<T> SendAsyncData<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
     => (await SendAsyncRaw<Responses.Datas<T>>(method, endpoint, token, content)).Data;
 
+    public async IAsyncEnumerable<T> SendAsyncEnumerable<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
+    {
+        endpoint += "?limit=20";
+        for(var page = 1; true; page++)
+        {
+            var (data, _) = await SendAsyncRaw<Responses.DatasWithMeta<T[]>>(method, endpoint + $"&page={page}", token, content);
+            foreach (var item in data)
+                yield return item;
+            if (data.Length < 20)
+                yield break;
+        }
+    }
+
     public class Endpoints(Account account)
     {
-        public Task<Responses.Agent[]> ListPublicAgents(int page = 1, int limit = 10)
-        => account.SendAsyncData<Responses.Agent[]>(HttpMethod.Get, $"/agents?page={page}&limit={limit}");
+        public IAsyncEnumerable<Responses.Agent> ListPublicAgents()
+        => account.SendAsyncEnumerable<Responses.Agent>(HttpMethod.Get, "/agents");
 
         public Task<Responses.ServerStatus> GetServerStatus()
         => account.SendAsyncRaw<Responses.ServerStatus>(HttpMethod.Get, "/");
@@ -89,5 +102,8 @@ public record class AccountAgent(string Name, string Token)
     {
         public Task<Responses.Agent> GetAgent()
         => agent.Accounts.SendAsyncData<Responses.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken);
+
+        public IAsyncEnumerable<Models.V2.Ship> ListMyShips()
+        => agent.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships", agent.AgentToken);
     }
 }

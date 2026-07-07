@@ -3,8 +3,9 @@ using SpaceTradersAPI.App;
 
 var accountsFile = ReadFile();
 var accounts = await ReadAccounts(accountsFile);
-var agent = await accounts.Selected.SelectedAgent.API.GetAgent();
-Console.WriteLine(agent);
+Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetAgent());
+await foreach (var agent in accounts.Selected.SelectedAgent.API.ListMyShips())
+    Console.WriteLine(agent);
 
 static async Task<Account> ReadAccounts(FileInfo accountsFile)
 {
