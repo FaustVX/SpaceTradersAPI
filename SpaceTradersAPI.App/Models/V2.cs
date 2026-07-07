@@ -37,7 +37,7 @@ public abstract record class ShipInternals(string Symbol, string Name, double Co
 public record class ShipFrame(string Symbol, string Name, double Condition, double Integrity, string Description, int ModuleSlots, int MountingPoints, int FuelCapacity, ShipRequirements Requirements, int Quality)
 : ShipInternals(Symbol, Name, Condition, Integrity, Description, Requirements, Quality);
 
-public record class ShipRequirements(int Power, int Crew, int Slots);
+public record class ShipRequirements(int? Power, int? Crew, int? Slots);
 
 public record class ShipReactor(string Symbol, string Name, double Condition, double Integrity, string Description, int PowerOutput, ShipRequirements Requirements, int Quality)
 : ShipInternals(Symbol, Name, Condition, Integrity, Description, Requirements, Quality);
@@ -45,10 +45,10 @@ public record class ShipReactor(string Symbol, string Name, double Condition, do
 public record class ShipEngine(string Symbol, string Name, double Condition, double Integrity, string Description, int Speed, ShipRequirements Requirements, int Quality)
 : ShipInternals(Symbol, Name, Condition, Integrity, Description, Requirements, Quality);
 
-public record class ShipModule(string Symbol, string Name, string Description, int Capacity, int Range, ShipRequirements Requirements)
+public record class ShipModule(string Symbol, string Name, string Description, int? Capacity, int? Range, ShipRequirements Requirements)
 : ShipRequirementsInternals(Symbol, Name, Description, Requirements);
 
-public record class ShipMount(string Symbol, string Name, string Description, int Strength, string[] Deposits, ShipRequirements Requirements)
+public record class ShipMount(string Symbol, string Name, string Description, int? Strength, string[]? Deposits, ShipRequirements Requirements)
 : ShipRequirementsInternals(Symbol, Name, Description, Requirements);
 
 public record class ShipCargo(int Capacity, int Units, ShipCargoItem[] Inventory);
@@ -56,8 +56,8 @@ public record class ShipCargo(int Capacity, int Units, ShipCargoItem[] Inventory
 public record class ShipCargoItem(string Symbol, string Name, string Description, int Units)
 : ShipCommons(Symbol, Name, Description);
 
-public record class ShipFuel(int Current, int Capacity, ShipFuelConsumed Consumed);
+public record class ShipFuel(int Current, int Capacity, ShipFuelConsumed? Consumed);
 
 public record class ShipFuelConsumed(int Amount, DateTimeOffset Timestamp);
 
-public record class ShipCooldown(string ShipSymbol, int TotalSeconds, int RemainingSeconds, DateTimeOffset Expiration);
+public record class ShipCooldown(string ShipSymbol, int TotalSeconds, int RemainingSeconds, DateTimeOffset? Expiration);
