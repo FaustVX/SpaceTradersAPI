@@ -18,7 +18,7 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts)
     [JsonIgnore]
     public Endpoints API => field ??= new(this);
 
-    public async Task<T> SendAsyncRaw<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
+    public async Task<Responses.Result<T>> SendAsyncRaw<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
     {
         var request = new HttpRequestMessage(method, endpoint)
         {
@@ -35,19 +35,34 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts)
             }
         };
         using var response = await HttpClient.SendAsync(request);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<T>())!;
+        try
+        {
+            response.EnsureSuccessStatusCode();
+            return (await response.Content.ReadFromJsonAsync<T>())!;
+        }
+        catch (HttpRequestException)
+        {
+            return (await response.Content.ReadFromJsonAsync<Responses.ErrorResponse>())!.Error;
+        }
     }
 
-    public async Task<T> SendAsyncData<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
-    => (await SendAsyncRaw<Responses.Datas<T>>(method, endpoint, token, content)).Data;
+    public async Task<Responses.Result<T>> SendAsyncData<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
+    => await SendAsyncRaw<Responses.Datas<T>>(method, endpoint, token, content) switch
+    {
+        Responses.Datas<T> { Data: var data } => data,
+        Responses.Error err => err,
+    };
 
     public async IAsyncEnumerable<T> SendAsyncEnumerable<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
     {
         endpoint += "?limit=20";
         for(var page = 1; true; page++)
         {
-            var (data, _) = await SendAsyncRaw<Responses.DatasWithMeta<T[]>>(method, endpoint + $"&page={page}", token, content);
+            var (data, _) = await SendAsyncRaw<Responses.DatasWithMeta<T[]>>(method, endpoint + $"&page={page}", token, content) switch
+            {
+                Responses.DatasWithMeta<T[]> dwm => dwm,
+                Responses.Error err => throw err,
+            };
             foreach (var item in data)
                 yield return item;
             if (data.Length < 20)
@@ -60,7 +75,7 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts)
         public IAsyncEnumerable<Models.V2.Agent> ListPublicAgents()
         => account.SendAsyncEnumerable<Models.V2.Agent>(HttpMethod.Get, "/agents");
 
-        public Task<Models.V2.ServerStatus> GetServerStatus()
+        public Task<Responses.Result<Models.V2.ServerStatus>> GetServerStatus()
         => account.SendAsyncRaw<Models.V2.ServerStatus>(HttpMethod.Get, "/");
     }
 }
@@ -79,15 +94,23 @@ public record class AccountItem(string Name, string Token)
 
     public class Endpoints(AccountItem account)
     {
-        public async Task<Models.V2.RegisterAgent> RegisterAgent(string symbol, string faction)
+        public async Task<Responses.Result<Models.V2.RegisterAgent>> RegisterAgent(string symbol, string faction)
         {
-            var registration = await account.Accounts.SendAsyncData<Models.V2.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol": "{{symbol}}",\n  "faction": "{{faction}}"}""");
-            var accountItem = new AccountAgent(registration.Agent.Symbol, registration.Token) { Accounts = account.Accounts };
-            account.Agents.Add(accountItem);
-            foreach (var ship in registration.Ships)
-                ship.AccountAgent = accountItem;
-            File.WriteAllText(account.Accounts.File.FullName, JsonSerializer.Serialize(account.Accounts, new JsonSerializerOptions(JsonSerializerDefaults.General) { WriteIndented = true, }));
-            return registration;
+            return await account.Accounts.SendAsyncData<Models.V2.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol": "{{symbol}}",\n  "faction": "{{faction}}"}""") switch
+            {
+                Models.V2.RegisterAgent registration => Register(registration),
+                Responses.Error err => err,
+            };
+
+            Models.V2.RegisterAgent Register(Models.V2.RegisterAgent registration)
+            {
+                var accountItem = new AccountAgent(registration.Agent.Symbol, registration.Token) { Accounts = account.Accounts };
+                account.Agents.Add(accountItem);
+                foreach (var ship in registration.Ships)
+                    ship.AccountAgent = accountItem;
+                File.WriteAllText(account.Accounts.File.FullName, JsonSerializer.Serialize(account.Accounts, new JsonSerializerOptions(JsonSerializerDefaults.General) { WriteIndented = true, }));
+                return registration;
+            }
         }
     }
 }
@@ -105,28 +128,36 @@ public record class AccountAgent(string Name, string Token)
 
     public class Endpoints(AccountAgent agent)
     {
-        public Task<Models.V2.Agent> GetAgent()
+        public Task<Responses.Result<Models.V2.Agent>> GetAgent()
         => agent.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken);
 
-        public async Task<Models.V2.Ship> GetShip(string shipSymbol)
+        public async Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
+        => await agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken) switch
         {
-            var ship = await agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken);
-            ship.AccountAgent = agent;
-            return ship;
-        }
+            Models.V2.Ship s => s with { AccountAgent = agent },
+            Responses.Error err => err,
+        };
 
-        public async Task<Models.V2.ShipNav> DockShip(string shipSymbol)
-        => (await agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken)).Nav;
-
-        public async Task<Models.V2.ShipNav> OrbitShip(string shipSymbol)
-        => (await agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/orbit", agent.AgentToken)).Nav;
-
-        public async Task<Models.V2.CreateChart> CreateChart(string shipSymbol)
+        public async Task<Responses.Result<Models.V2.ShipNav>> DockShip(string shipSymbol)
+        => await agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken) switch
         {
-            var chart = await agent.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken);
-            chart.Agent.AccountAgent = agent.Account;
-            return chart;
-        }
+            Responses.ShipNavWraper { Nav: var nav } => nav,
+            Responses.Error err => err,
+        };
+
+        public async Task<Responses.Result<Models.V2.ShipNav>> OrbitShip(string shipSymbol)
+        => await agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/orbit", agent.AgentToken) switch
+        {
+            Responses.ShipNavWraper { Nav: var nav } => nav,
+            Responses.Error err => err,
+        };
+
+        public async Task<Responses.Result<Models.V2.CreateChart>> CreateChart(string shipSymbol)
+        => await agent.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken) switch
+        {
+            Models.V2.CreateChart chart => chart with { Agent = chart.Agent with { AccountAgent = agent.Account } },
+            Responses.Error err => err,
+        };
 
         public async IAsyncEnumerable<Models.V2.Ship> ListMyShips()
         {

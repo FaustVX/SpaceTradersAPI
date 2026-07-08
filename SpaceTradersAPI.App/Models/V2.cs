@@ -11,7 +11,7 @@ public static class V2
         [JsonIgnore]
         public AccountItem AccountAgent { set => _account ??= value; }
 
-        public Task<RegisterAgent> RegisterAgent(string symbol, string faction)
+        public Task<Responses.Result<RegisterAgent>> RegisterAgent(string symbol, string faction)
         => _account.API.RegisterAgent(symbol, faction);
     }
 
@@ -43,16 +43,16 @@ public static class V2
 
         [JsonIgnore]
         public AccountAgent AccountAgent { set => _accountAgent ??= value; }
-        public Task<ShipNav> Dock()
+        public Task<Responses.Result<ShipNav>> Dock()
         => _accountAgent.API.DockShip(Symbol);
 
-        public Task<ShipNav> Orbit()
+        public Task<Responses.Result<ShipNav>> Orbit()
         => _accountAgent.API.OrbitShip(Symbol);
 
-        public Task<CreateChart> CreateChart()
+        public Task<Responses.Result<CreateChart>> CreateChart()
         => _accountAgent.API.CreateChart(Symbol);
 
-        public Task<Ship> UpdateFromServer()
+        public Task<Responses.Result<Ship>> UpdateFromServer()
         => _accountAgent.API.GetShip(Symbol);
     }
 
