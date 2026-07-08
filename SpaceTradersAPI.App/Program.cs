@@ -1,11 +1,11 @@
 ﻿using System.Text.Json;
 using SpaceTradersAPI.App;
 
-var accountsFile = ReadFile();
-var accounts = await ReadAccounts(accountsFile);
-Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetAgent());
-await foreach (var agent in accounts.Selected.SelectedAgent.API.ListMyShips())
-    Console.WriteLine(agent);
+var accounts = await ReadAccounts(ReadFile());
+
+var ship = await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-3");
+// Console.WriteLine(ship);
+Console.WriteLine(await (ship.Nav.Status != "DOCKED" ? ship.Dock() : ship.Orbit()));
 
 static async Task<Account> ReadAccounts(FileInfo accountsFile)
 {
@@ -16,7 +16,10 @@ static async Task<Account> ReadAccounts(FileInfo accountsFile)
     {
         account.Accounts = accounts;
         foreach (var agent in account.Agents)
+        {
+            agent.Account = account;
             agent.Accounts = accounts;
+        }
     }
 
     accounts.File = accountsFile;

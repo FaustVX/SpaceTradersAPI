@@ -1,8 +1,19 @@
+using System.Text.Json.Serialization;
+
 namespace SpaceTradersAPI.App.Models;
 
 public static class V2
 {
-    public record class Agent(string AccountID, string Symbol, string HeadQuarters, long Credits, string StartingFaction, int ShipCount);
+    public record class Agent(string AccountID, string Symbol, string HeadQuarters, long Credits, string StartingFaction, int ShipCount)
+    {
+        private AccountItem _account = default!;
+
+        [JsonIgnore]
+        public AccountItem AccountAgent { set => _account ??= value; }
+
+        public Task<RegisterAgent> RegisterAgent(string symbol, string faction)
+        => _account.API.RegisterAgent(symbol, faction);
+    }
 
     public record class RegisterAgent(string Token, Agent Agent, Faction Faction, Contract Contract, Ship[] Ships);
 
@@ -26,7 +37,24 @@ public static class V2
 
     public record class ContractDeliverGood(string TradeSymbol, string DestinationSymbol, int UnitsRequired, int UnitsFulFilled);
 
-    public record class Ship(string Symbol, ShipRegistration Registration, ShipNav Nav, ShipCrew Crew, ShipFrame Frame, ShipReactor Reactor, ShipEngine Engine, ShipModule[] Modules, ShipMount[] Mounts, ShipCargo Cargo, ShipFuel Fuel, ShipCooldown Cooldown);
+    public record class Ship(string Symbol, ShipRegistration Registration, ShipNav Nav, ShipCrew Crew, ShipFrame Frame, ShipReactor Reactor, ShipEngine Engine, ShipModule[] Modules, ShipMount[] Mounts, ShipCargo Cargo, ShipFuel Fuel, ShipCooldown Cooldown)
+    {
+        private AccountAgent _accountAgent = default!;
+
+        [JsonIgnore]
+        public AccountAgent AccountAgent { set => _accountAgent ??= value; }
+        public Task<ShipNav> Dock()
+        => _accountAgent.API.DockShip(Symbol);
+
+        public Task<ShipNav> Orbit()
+        => _accountAgent.API.OrbitShip(Symbol);
+
+        public Task<CreateChart> CreateChart()
+        => _accountAgent.API.CreateChart(Symbol);
+
+        public Task<Ship> UpdateFromServer()
+        => _accountAgent.API.GetShip(Symbol);
+    }
 
     public record class ShipRegistration(string Name, string FactionSymbol, string Role);
 
@@ -73,4 +101,20 @@ public static class V2
     public record class ShipFuelConsumed(int Amount, DateTimeOffset Timestamp);
 
     public record class ShipCooldown(string ShipSymbol, int TotalSeconds, int RemainingSeconds, DateTimeOffset? Expiration);
+
+    public record class ShipConditionEvent(string Symbol, string Component, string Name, string Description);
+
+    public record class CreateChart(Chart Chart, Waypoint Waypoint, Transaction Transaction, Agent Agent);
+
+    public record class Chart(string WaypointSymbol, string SubmittedBy, DateTimeOffset SubmittedOn);
+
+    public record class Waypoint(string Symbol, string Type, string SystemSymbol, int X, int Y, WaypointOrbital[] Orbitals, string? Orbit, Faction? Faction, WaypointTrait[] Traits, WaypointModifier[]? Modifiers, Chart? Chart, bool IsUnderConstruction);
+
+    public record class WaypointOrbital(string Symbol);
+
+    public record class WaypointTrait(string Symbol, string Name, string Description);
+
+    public record class WaypointModifier(string Symbol, string Name, string Description);
+
+    public record class Transaction(string WaypointSymbol, string ShipSymbol, int TotalPrice, DateTimeOffset Timestamp);
 }

@@ -82,7 +82,10 @@ public record class AccountItem(string Name, string Token)
         public async Task<Models.V2.RegisterAgent> RegisterAgent(string symbol, string faction)
         {
             var registration = await account.Accounts.SendAsyncData<Models.V2.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol": "{{symbol}}",\n  "faction": "{{faction}}"}""");
-            account.Agents.Add(new(registration.Agent.Symbol, registration.Token) { Accounts = account.Accounts });
+            var accountItem = new AccountAgent(registration.Agent.Symbol, registration.Token) { Accounts = account.Accounts };
+            account.Agents.Add(accountItem);
+            foreach (var ship in registration.Ships)
+                ship.AccountAgent = accountItem;
             File.WriteAllText(account.Accounts.File.FullName, JsonSerializer.Serialize(account.Accounts, new JsonSerializerOptions(JsonSerializerDefaults.General) { WriteIndented = true, }));
             return registration;
         }
@@ -96,6 +99,8 @@ public record class AccountAgent(string Name, string Token)
     [JsonIgnore]
     public Account Accounts { get; set; } = default!;
     [JsonIgnore]
+    public AccountItem Account { get; set; } = default!;
+    [JsonIgnore]
     public Endpoints API => field ??= new(this);
 
     public class Endpoints(AccountAgent agent)
@@ -103,7 +108,33 @@ public record class AccountAgent(string Name, string Token)
         public Task<Models.V2.Agent> GetAgent()
         => agent.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken);
 
-        public IAsyncEnumerable<Models.V2.Ship> ListMyShips()
-        => agent.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships", agent.AgentToken);
+        public async Task<Models.V2.Ship> GetShip(string shipSymbol)
+        {
+            var ship = await agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken);
+            ship.AccountAgent = agent;
+            return ship;
+        }
+
+        public async Task<Models.V2.ShipNav> DockShip(string shipSymbol)
+        => (await agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken)).Nav;
+
+        public async Task<Models.V2.ShipNav> OrbitShip(string shipSymbol)
+        => (await agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/orbit", agent.AgentToken)).Nav;
+
+        public async Task<Models.V2.CreateChart> CreateChart(string shipSymbol)
+        {
+            var chart = await agent.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken);
+            chart.Agent.AccountAgent = agent.Account;
+            return chart;
+        }
+
+        public async IAsyncEnumerable<Models.V2.Ship> ListMyShips()
+        {
+            await foreach (var ship in agent.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships", agent.AgentToken))
+            {
+                ship.AccountAgent = agent;
+                yield return ship;
+            }
+        }
     }
 }
