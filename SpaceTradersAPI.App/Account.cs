@@ -46,8 +46,8 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts)
         }
     }
 
-    public async Task<Responses.Result<T>> SendAsyncData<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
-    => await SendAsyncRaw<Responses.Datas<T>>(method, endpoint, token, content).MapvalueAsync(data => data.Data);
+    public Task<Responses.Result<T>> SendAsyncData<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
+    => SendAsyncRaw<Responses.Datas<T>>(method, endpoint, token, content).MapvalueAsync(data => data.Data);
 
     public async IAsyncEnumerable<T> SendAsyncEnumerable<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
     {
@@ -86,8 +86,8 @@ public record class AccountItem(string Name, string Token)
 
     public class Endpoints(AccountItem account)
     {
-        public async Task<Responses.Result<Models.V2.RegisterAgent>> RegisterAgent(string symbol, string faction)
-        => await account.Accounts.SendAsyncData<Models.V2.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol": "{{symbol}}",\n  "faction": "{{faction}}"}""")
+        public Task<Responses.Result<Models.V2.RegisterAgent>> RegisterAgent(string symbol, string faction)
+        => account.Accounts.SendAsyncData<Models.V2.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol": "{{symbol}}",\n  "faction": "{{faction}}"}""")
             .MapvalueAsync(registration =>
             {
                 var accountItem = new AccountAgent(registration.Agent.Symbol, registration.Token) { Accounts = account.Accounts };
@@ -116,20 +116,20 @@ public record class AccountAgent(string Name, string Token)
         public Task<Responses.Result<Models.V2.Agent>> GetAgent()
         => agent.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken);
 
-        public async Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
-        => await agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
+        public Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
+        => agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
         .MapvalueAsync(resp => resp with { AccountAgent = agent });
 
-        public async Task<Responses.Result<Models.V2.ShipNav>> DockShip(string shipSymbol)
-        => await agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken)
+        public Task<Responses.Result<Models.V2.ShipNav>> DockShip(string shipSymbol)
+        => agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken)
         .MapvalueAsync(resp => resp.Nav);
 
-        public async Task<Responses.Result<Models.V2.ShipNav>> OrbitShip(string shipSymbol)
-        => await agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/orbit", agent.AgentToken)
+        public Task<Responses.Result<Models.V2.ShipNav>> OrbitShip(string shipSymbol)
+        => agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/orbit", agent.AgentToken)
         .MapvalueAsync(resp => resp.Nav);
 
-        public async Task<Responses.Result<Models.V2.CreateChart>> CreateChart(string shipSymbol)
-        => await agent.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken)
+        public Task<Responses.Result<Models.V2.CreateChart>> CreateChart(string shipSymbol)
+        => agent.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken)
         .MapvalueAsync(chart => chart with { Agent = chart.Agent with { AccountAgent = agent.Account } });
 
         public async IAsyncEnumerable<Models.V2.Ship> ListMyShips()

@@ -55,10 +55,10 @@ public static class Ext
 {
     extension<T>(Task<Result<T>> task)
     {
-        public async Task<T> ValueOrThrowAsync()
-        => (await task).ValueOrThrow;
+        public Task<T> ValueOrThrowAsync()
+        => task.ContinueWith(t => t.Result.ValueOrThrow, TaskContinuationOptions.ExecuteSynchronously);
 
-        public async Task<Result<TResult>> MapvalueAsync<TResult>(Func<T, TResult> mapper)
-        => (await task).MapValue(mapper);
+        public Task<Result<TResult>> MapvalueAsync<TResult>(Func<T, TResult> mapper)
+        => task.ContinueWith(t => t.Result.MapValue(mapper), TaskContinuationOptions.ExecuteSynchronously);
     }
 }
