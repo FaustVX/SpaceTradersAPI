@@ -1,32 +1,20 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Text.Json;
 using SpaceTradersAPI.App;
 using SpaceTradersAPI.App.Responses;
-using static SpaceTradersAPI.App.Models.V2;
 
 var accounts = await ReadAccounts(ReadFile());
 
-var ship = await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-3") switch
-{
-    Ship s => s,
-    Error err => throw err,
-};
+var ship = (await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-3")).ValueOrThrow;
 Console.WriteLine(await ship.CreateChart());
 // Console.WriteLine(ship);
-Console.WriteLine(await (ship.Nav.Status != "DOCKED" ? ship.Dock() : ship.Orbit()) switch
-{
-    ShipNav nav => nav,
-    Error err => throw err,
-});
+Console.WriteLine((await (ship.Nav.Status != "DOCKED" ? ship.Dock() : ship.Orbit())).ValueOrThrow);
 
 static async Task<Account> ReadAccounts(FileInfo accountsFile)
 {
     using var stream = accountsFile.OpenRead();
     var accounts = JsonSerializer.Deserialize<Account>(stream, new JsonSerializerOptions() { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true, })!;
-    Console.WriteLine(await accounts.API.GetServerStatus() switch
-    {
-        ServerStatus status => status,
-        Error err => err,
-    });
+    Console.WriteLine((await accounts.API.GetServerStatus()).ValueOrThrow);
     foreach (var account in accounts.Accounts)
     {
         account.Accounts = accounts;

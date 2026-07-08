@@ -28,4 +28,18 @@ public readonly union Result<T>(T, Error)
         Error err => err.ToString(),
         null => throw new UnreachableException(),
     };
+
+    public T ValueOrThrow => this switch
+    {
+        T t => t,
+        Error err => throw err,
+        null => throw new UnreachableException(),
+    };
+
+    public Result<TResult> MapValue<TResult>(Func<T, TResult> mapper) => this switch
+    {
+        T t=> mapper(t),
+        Error err => err,
+        null => throw new UnreachableException(),
+    };
 }
