@@ -1,20 +1,19 @@
-﻿using System.Diagnostics;
-using System.Text.Json;
+﻿using System.Text.Json;
 using SpaceTradersAPI.App;
 using SpaceTradersAPI.App.Responses;
 
 var accounts = await ReadAccounts(ReadFile());
 
-var ship = (await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-3")).ValueOrThrow;
+var ship = await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-3").ValueOrThrowAsync();
 Console.WriteLine(await ship.CreateChart());
 // Console.WriteLine(ship);
-Console.WriteLine((await (ship.Nav.Status != "DOCKED" ? ship.Dock() : ship.Orbit())).ValueOrThrow);
+Console.WriteLine(await (ship.Nav.Status != "DOCKED" ? ship.Dock() : ship.Orbit()).ValueOrThrowAsync());
 
 static async Task<Account> ReadAccounts(FileInfo accountsFile)
 {
     using var stream = accountsFile.OpenRead();
     var accounts = JsonSerializer.Deserialize<Account>(stream, new JsonSerializerOptions() { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true, })!;
-    Console.WriteLine((await accounts.API.GetServerStatus()).ValueOrThrow);
+    Console.WriteLine(await accounts.API.GetServerStatus().ValueOrThrowAsync());
     foreach (var account in accounts.Accounts)
     {
         account.Accounts = accounts;
@@ -50,4 +49,16 @@ static FileInfo ReadFile()
         Environment.Exit(-1);
     }
     return accountsFile;
+}
+
+public static class Ext
+{
+    extension<T>(Task<Result<T>> task)
+    {
+        public async Task<T> ValueOrThrowAsync()
+        => (await task).ValueOrThrow;
+
+        public async Task<Result<TResult>> MapvalueAsync<TResult>(Func<T, TResult> mapper)
+        => (await task).MapValue(mapper);
+    }
 }
