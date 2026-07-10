@@ -99,7 +99,7 @@ public record class AccountItem(string Name, string Token)
                 account.Agents.Add(accountAgent);
                 foreach (var ship in registration.Ships)
                     ship.AccountAgent = accountAgent;
-                registration.Agent.AccountAgent = account;
+                registration.Agent.AccountAgent = accountAgent;
                 File.WriteAllText(account.Accounts.File.FullName, JsonSerializer.Serialize(account.Accounts, new JsonSerializerOptions(JsonSerializerDefaults.General) { WriteIndented = true, }));
                 return registration;
             });
@@ -123,7 +123,8 @@ public record class AccountAgent(string Name, string Token)
     public class Endpoints(AccountAgent agent)
     {
         public Task<Responses.Result<Models.V2.Agent>> GetAgent()
-        => agent.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken);
+        => agent.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken)
+        .MapvalueAsync(a => a with { AccountAgent = agent });
 
         public Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
         => agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
@@ -139,7 +140,7 @@ public record class AccountAgent(string Name, string Token)
 
         public Task<Responses.Result<Models.V2.CreateChart>> CreateChart(string shipSymbol)
         => agent.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken)
-        .MapvalueAsync(chart => chart with { Agent = chart.Agent with { AccountAgent = agent.Account } });
+        .MapvalueAsync(chart => chart with { Agent = chart.Agent with { AccountAgent = agent } });
 
         public async IAsyncEnumerable<Models.V2.Ship> ListMyShips()
         {
@@ -149,5 +150,8 @@ public record class AccountAgent(string Name, string Token)
                 yield return ship;
             }
         }
+
+        public IAsyncEnumerable<Models.V2.Contract> ListMyContracts()
+        => agent.Accounts.SendAsyncEnumerable<Models.V2.Contract>(HttpMethod.Get, "/my/contracts");
     }
 }

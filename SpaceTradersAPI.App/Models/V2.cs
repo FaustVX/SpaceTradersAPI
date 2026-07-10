@@ -6,13 +6,16 @@ public static class V2
 {
     public record class Agent(string AccountID, string Symbol, string HeadQuarters, long Credits, FactionSymbol StartingFaction, int ShipCount)
     {
-        private AccountItem _account = default!;
+        private AccountAgent _account = default!;
 
         [JsonIgnore]
-        public AccountItem AccountAgent { set => _account ??= value; }
+        public AccountAgent AccountAgent { set => _account ??= value; }
 
-        public Task<Responses.Result<RegisterAgent>> RegisterAgent(string symbol, FactionSymbol faction)
-        => _account.API.RegisterAgent(symbol, faction);
+        public IAsyncEnumerable<Ship> ListMyShips()
+        => _account.API.ListMyShips();
+
+        public IAsyncEnumerable<Contract> ListMyContracts()
+        => _account.API.ListMyContracts();
     }
 
     public record class RegisterAgent(string Token, Agent Agent, Faction Faction, Contract Contract, Ship[] Ships);
@@ -25,9 +28,11 @@ public static class V2
 
     public record class ServerStatusResets(DateTimeOffset Next, string Frequency);
 
-    public record class Faction(FactionSymbol Symbol, string Name, string Description, string HeadQuarters, FactionTrait[] Traits, bool IsRecruiting);
+    public record class Faction(FactionSymbol Symbol, string Name, string Description, string HeadQuarters, FactionTrait[] Traits, bool IsRecruiting)
+    : Commons<FactionSymbol>(Symbol, Name, Description);
 
-    public record class FactionTrait(FactionTraitSymbol Symbol, string Name, string Description);
+    public record class FactionTrait(FactionTraitSymbol Symbol, string Name, string Description)
+    : Commons<FactionTraitSymbol>(Symbol, Name, Description);
 
     public record class Contract(string Id, FactionSymbol FactionSymbol, ContractType Type, ContractTerm Terms, bool Accepted, bool FulFilled, DateTimeOffset DeadlineToAccept);
 
