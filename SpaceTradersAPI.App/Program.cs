@@ -5,9 +5,9 @@ using SpaceTradersAPI.App.Responses;
 var accounts = await ReadAccounts(ReadFile());
 
 var ship = await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-3").ValueOrThrowAsync();
+Console.WriteLine(ship);
 Console.WriteLine(await ship.CreateChart());
-// Console.WriteLine(ship);
-Console.WriteLine(await (ship.Nav.Status != "DOCKED" ? ship.Dock() : ship.Orbit()).ValueOrThrowAsync());
+Console.WriteLine(await (ship.Nav.Status is not SpaceTradersAPI.App.Models.V2.ShipNavStatus.Docked? ship.Dock() : ship.Orbit()).ValueOrThrowAsync());
 
 static async Task<Account> ReadAccounts(FileInfo accountsFile)
 {
@@ -60,5 +60,12 @@ public static class Ext
 
         public Task<Result<TResult>> MapvalueAsync<TResult>(Func<T, TResult> mapper)
         => task.ContinueWith(t => t.Result.MapValue(mapper), TaskContinuationOptions.ExecuteSynchronously);
+    }
+
+    extension<T>(T @enum)
+    where T : struct, Enum
+    {
+        public string ToUpperCase()
+        => @enum.ToString().ToUpperInvariant();
     }
 }

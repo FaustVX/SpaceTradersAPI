@@ -6,6 +6,8 @@ namespace SpaceTradersAPI.App;
 
 public record class Account(Uri BaseAddress, AccountItem[] Accounts)
 {
+    private static readonly JsonSerializerOptions jsonSerializerOptions = new() { Converters = { new JsonStringEnumConverter() }, PropertyNameCaseInsensitive = true };
+
     [JsonIgnore]
     public AccountItem Selected { get => field ??= Accounts[0]; set; }
     [JsonIgnore]
@@ -38,11 +40,11 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts)
         try
         {
             response.EnsureSuccessStatusCode();
-            return (await response.Content.ReadFromJsonAsync<T>())!;
+            return (await response.Content.ReadFromJsonAsync<T>(jsonSerializerOptions))!;
         }
         catch (HttpRequestException)
         {
-            return (await response.Content.ReadFromJsonAsync<Responses.ErrorResponse>())!.Error;
+            return (await response.Content.ReadFromJsonAsync<Responses.ErrorResponse>(jsonSerializerOptions))!.Error;
         }
     }
 
@@ -69,6 +71,9 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts)
 
         public Task<Responses.Result<Models.V2.ServerStatus>> GetServerStatus()
         => account.SendAsyncRaw<Models.V2.ServerStatus>(HttpMethod.Get, "/");
+
+        public IAsyncEnumerable<Models.V2.Faction> ListFactions()
+        => account.SendAsyncEnumerable<Models.V2.Faction>(HttpMethod.Get, "/factions");
     }
 }
 
@@ -86,17 +91,21 @@ public record class AccountItem(string Name, string Token)
 
     public class Endpoints(AccountItem account)
     {
-        public Task<Responses.Result<Models.V2.RegisterAgent>> RegisterAgent(string symbol, string faction)
-        => account.Accounts.SendAsyncData<Models.V2.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol": "{{symbol}}",\n  "faction": "{{faction}}"}""")
+        public Task<Responses.Result<Models.V2.RegisterAgent>> RegisterAgent(string symbol, Models.V2.FactionSymbol faction)
+        => account.Accounts.SendAsyncData<Models.V2.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol":"{{symbol}}","faction":"{{faction.ToUpperCase()}}"}""")
             .MapvalueAsync(registration =>
             {
-                var accountItem = new AccountAgent(registration.Agent.Symbol, registration.Token) { Accounts = account.Accounts };
-                account.Agents.Add(accountItem);
+                var accountAgent = new AccountAgent(registration.Agent.Symbol, registration.Token) { Accounts = account.Accounts };
+                account.Agents.Add(accountAgent);
                 foreach (var ship in registration.Ships)
-                    ship.AccountAgent = accountItem;
+                    ship.AccountAgent = accountAgent;
+                registration.Agent.AccountAgent = account;
                 File.WriteAllText(account.Accounts.File.FullName, JsonSerializer.Serialize(account.Accounts, new JsonSerializerOptions(JsonSerializerDefaults.General) { WriteIndented = true, }));
                 return registration;
             });
+
+        public IAsyncEnumerable<Models.V2.AgentFaction> GetMyFactions()
+        => account.Accounts.SendAsyncEnumerable<Models.V2.AgentFaction>(HttpMethod.Get, "/my/factions", account.AccountToken);
     }
 }
 
