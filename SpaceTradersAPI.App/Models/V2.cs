@@ -55,6 +55,12 @@ public static partial class V2
 
         public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Ship ship, TradeSymbol trade, int units)
         => _accountAgent.API.DeliverCargoToContract(Id, ship.Symbol, trade, units);
+
+        public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Ship ship, ShipCargoItem cargoItem)
+        => _accountAgent.API.DeliverCargoToContract(Id, ship.Symbol, cargoItem.Symbol, cargoItem.Units);
+
+        public IAsyncEnumerable<DeliverCargoToContract> DeliverAllCargoToContract(Ship ship)
+        => ship.DeliverAllCargoToContract(this);
     }
 
     public record class AcceptContract(Contract Contract, Agent Agent);
@@ -65,7 +71,11 @@ public static partial class V2
 
     public record class ContractPayment(int OnAccepted, int OnFulfilled);
 
-    public record class ContractDeliverGood(string TradeSymbol, string DestinationSymbol, int UnitsRequired, int UnitsFulFilled);
+    public record class ContractDeliverGood(TradeSymbol TradeSymbol, string DestinationSymbol, int UnitsRequired, int UnitsFulFilled)
+    {
+        public void Deconstruct(out TradeSymbol tradeSymbol, out string destinationSymbol, out int unitsRemaining)
+        => (tradeSymbol, destinationSymbol, unitsRemaining) = (TradeSymbol, DestinationSymbol, Math.Min(0, UnitsRequired - UnitsFulFilled));
+    }
 
     public record class Ship(string Symbol, ShipRegistration Registration, ShipNav Nav, ShipCrew Crew, ShipFrame Frame, ShipReactor Reactor, ShipEngine Engine, ShipModule[] Modules, ShipMount[] Mounts, ShipCargo Cargo, ShipFuel Fuel, ShipCooldown Cooldown)
     {
@@ -91,6 +101,24 @@ public static partial class V2
 
         public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Contract contract, TradeSymbol trade, int units)
         => _accountAgent.API.DeliverCargoToContract(contract.Id, Symbol, trade, units);
+
+        public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Contract contract, ShipCargoItem cargoItem)
+        => _accountAgent.API.DeliverCargoToContract(contract.Id, Symbol, cargoItem.Symbol, cargoItem.Units);
+
+        public async IAsyncEnumerable<DeliverCargoToContract> DeliverAllCargoToContract(Contract contract)
+        {
+            foreach (var (trade, _, remaining) in contract.Terms.Deliver)
+                if (GetCargo(Cargo, trade, remaining) is {} cargo)
+                    yield return await DeliverCargoToContract(contract, cargo).ValueOrThrowAsync();
+
+            static ShipCargoItem? GetCargo(ShipCargo shipCargo, TradeSymbol tradeSymbol, int units)
+            {
+                foreach (var cargo in shipCargo.Inventory)
+                    if (cargo.Symbol == tradeSymbol && cargo.Units >= units)
+                        return cargo;
+                return null;
+            }
+        }
     }
 
     public record class ShipRegistration(string Name, FactionSymbol FactionSymbol, ShipRole Role);
