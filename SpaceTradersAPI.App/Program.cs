@@ -6,8 +6,9 @@ var accounts = await ReadAccounts(ReadFile());
 
 var ship = await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-3").ValueOrThrowAsync();
 Console.WriteLine(ship);
-Console.WriteLine(await ship.CreateChart());
-Console.WriteLine(await (ship.Nav.Status is not SpaceTradersAPI.App.Models.V2.ShipNavStatus.Docked? ship.Dock() : ship.Orbit()).ValueOrThrowAsync());
+var contract = await ship.NegociateContract().MapErrorAsync(e => ship.GetAgent().API.GetContract(e.Data["contractId"]!.GetValue<string>())).ValueOrThrowAsync();
+Console.WriteLine(contract);
+Console.WriteLine(await contract.AcceptContract().ValueOrThrowAsync());
 
 static async Task<Account> ReadAccounts(FileInfo accountsFile)
 {
@@ -60,6 +61,9 @@ public static class Ext
 
         public Task<Result<TResult>> MapvalueAsync<TResult>(Func<T, TResult> mapper)
         => task.ContinueWith(t => t.Result.MapValue(mapper), TaskContinuationOptions.ExecuteSynchronously);
+
+        public Task<Result<T>> MapErrorAsync(Func<Error, Task<Result<T>>> errorMapper)
+        => task.ContinueWith(t => t.Result.MapError(e => errorMapper(e).Result), TaskContinuationOptions.ExecuteSynchronously);
     }
 
     extension<T>(T @enum)

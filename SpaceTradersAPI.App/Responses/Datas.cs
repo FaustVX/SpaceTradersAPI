@@ -13,7 +13,7 @@ public record class ShipNavWraper(Models.V2.ShipNav Nav);
 
 public record class ErrorResponse(Error Error);
 
-public record class Error(int Code, string Message, JsonNode Data)
+public record class Error(int Code, string Message, JsonObject Data)
 {
     public static implicit operator Exception(Error err)
     => new(err.ToString());
@@ -38,8 +38,15 @@ public readonly union Result<T>(T, Error)
 
     public Result<TResult> MapValue<TResult>(Func<T, TResult> mapper) => this switch
     {
-        T t=> mapper(t),
+        T t => mapper(t),
         Error err => err,
+        null => throw new UnreachableException(),
+    };
+
+    public Result<T> MapError(Func<Error, Result<T>> mapper) => this switch
+    {
+        T t => t,
+        Error err => mapper(err),
         null => throw new UnreachableException(),
     };
 }

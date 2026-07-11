@@ -42,8 +42,9 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts)
             response.EnsureSuccessStatusCode();
             return (await response.Content.ReadFromJsonAsync<T>(jsonSerializerOptions))!;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.BadRequest)
         {
+            // var str = await response.Content.ReadAsStringAsync();
             return (await response.Content.ReadFromJsonAsync<Responses.ErrorResponse>(jsonSerializerOptions))!.Error;
         }
     }
@@ -100,6 +101,7 @@ public record class AccountItem(string Name, string Token)
                 foreach (var ship in registration.Ships)
                     ship.AccountAgent = accountAgent;
                 registration.Agent.AccountAgent = accountAgent;
+                registration.Contract.AccountAgent = accountAgent;
                 File.WriteAllText(account.Accounts.File.FullName, JsonSerializer.Serialize(account.Accounts, new JsonSerializerOptions(JsonSerializerDefaults.General) { WriteIndented = true, }));
                 return registration;
             });
@@ -130,6 +132,10 @@ public record class AccountAgent(string Name, string Token)
         => agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
         .MapvalueAsync(resp => resp with { AccountAgent = agent });
 
+        public Task<Responses.Result<Models.V2.Contract>> NegociateContract(string shipSymbol)
+        => agent.Accounts.SendAsyncData<Models.V2.Contract>(HttpMethod.Post, $"/my/ships/{shipSymbol}/negotiate/contract", agent.AgentToken)
+        .MapvalueAsync(resp => resp with { AccountAgent = agent });
+
         public Task<Responses.Result<Models.V2.ShipNav>> DockShip(string shipSymbol)
         => agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken)
         .MapvalueAsync(resp => resp.Nav);
@@ -151,7 +157,29 @@ public record class AccountAgent(string Name, string Token)
             }
         }
 
-        public IAsyncEnumerable<Models.V2.Contract> ListMyContracts()
-        => agent.Accounts.SendAsyncEnumerable<Models.V2.Contract>(HttpMethod.Get, "/my/contracts");
+        public async IAsyncEnumerable<Models.V2.Contract> ListMyContracts()
+        {
+            await foreach (var contract in agent.Accounts.SendAsyncEnumerable<Models.V2.Contract>(HttpMethod.Get, "/my/contracts", agent.AgentToken))
+            {
+                contract.AccountAgent = agent;
+                yield return contract;
+            }
+        }
+
+        public Task<Responses.Result<Models.V2.Contract>> GetContract(string contractId)
+        => agent.Accounts.SendAsyncData<Models.V2.Contract>(HttpMethod.Get, $"/my/contracts/{contractId}", agent.AgentToken)
+        .MapvalueAsync(resp => resp with { AccountAgent = agent });
+
+        public Task<Responses.Result<Models.V2.AcceptContract>> AcceptContract(string contractId)
+        => agent.Accounts.SendAsyncData<Models.V2.AcceptContract>(HttpMethod.Post, $"/my/contracts/{contractId}/accept", agent.AgentToken)
+        .MapvalueAsync(resp => resp with { Agent = resp.Agent with { AccountAgent = agent }, Contract = resp.Contract with { AccountAgent = agent } });
+
+        public Task<Responses.Result<Models.V2.AcceptContract>> FulfillContract(string contractId)
+        => agent.Accounts.SendAsyncData<Models.V2.AcceptContract>(HttpMethod.Post, $"/my/contracts/{contractId}/fulfull", agent.AgentToken)
+        .MapvalueAsync(resp => resp with { Agent = resp.Agent with { AccountAgent = agent }, Contract = resp.Contract with { AccountAgent = agent } });
+
+        public Task<Responses.Result<Models.V2.DeliverCargoToContract>> DeliverCargoToContract(string contractId, string shipSymbol, Models.V2.TradeSymbol tradeSymbol, int units)
+        => agent.Accounts.SendAsyncData<Models.V2.DeliverCargoToContract>(HttpMethod.Post, $"/my/contracts/{contractId}/deliver", agent.AgentToken, $$"""{"shipSymbol":{{shipSymbol}},"tradeSymbol":{{tradeSymbol.ToUpperCase()}},"units":{{units}}}""")
+        .MapvalueAsync(resp => resp with { Contract = resp.Contract with { AccountAgent = agent } });
     }
 }

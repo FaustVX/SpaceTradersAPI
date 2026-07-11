@@ -6,16 +6,19 @@ public static partial class V2
 {
     public record class Agent(string AccountID, string Symbol, string HeadQuarters, long Credits, FactionSymbol StartingFaction, int ShipCount)
     {
-        private AccountAgent _account = default!;
+        private AccountAgent _accountAgent = default!;
 
         [JsonIgnore]
-        public AccountAgent AccountAgent { set => _account ??= value; }
+        public AccountAgent AccountAgent { set => _accountAgent ??= value; }
 
         public IAsyncEnumerable<Ship> ListMyShips()
-        => _account.API.ListMyShips();
+        => _accountAgent.API.ListMyShips();
 
         public IAsyncEnumerable<Contract> ListMyContracts()
-        => _account.API.ListMyContracts();
+        => _accountAgent.API.ListMyContracts();
+
+        public Task<Responses.Result<Agent>> UpdateFromServer()
+        => _accountAgent.API.GetAgent();
     }
 
     public record class RegisterAgent(string Token, Agent Agent, Faction Faction, Contract Contract, Ship[] Ships);
@@ -34,7 +37,29 @@ public static partial class V2
     public record class FactionTrait(FactionTraitSymbol Symbol, string Name, string Description)
     : Commons<FactionTraitSymbol>(Symbol, Name, Description);
 
-    public record class Contract(string Id, FactionSymbol FactionSymbol, ContractType Type, ContractTerm Terms, bool Accepted, bool FulFilled, DateTimeOffset DeadlineToAccept);
+    public record class Contract(string Id, FactionSymbol FactionSymbol, ContractType Type, ContractTerm Terms, bool Accepted, bool FulFilled, DateTimeOffset DeadlineToAccept)
+    {
+        private AccountAgent _accountAgent = default!;
+
+        [JsonIgnore]
+        public AccountAgent AccountAgent { set => _accountAgent ??= value; }
+
+        public Task<Responses.Result<AcceptContract>> AcceptContract()
+        => _accountAgent.API.AcceptContract(Id);
+
+        public Task<Responses.Result<Contract>> UpdateFromServer()
+        => _accountAgent.API.GetContract(Id);
+
+        public Task<Responses.Result<AcceptContract>> FulfillContract()
+        => _accountAgent.API.FulfillContract(Id);
+
+        public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Ship ship, TradeSymbol trade, int units)
+        => _accountAgent.API.DeliverCargoToContract(Id, ship.Symbol, trade, units);
+    }
+
+    public record class AcceptContract(Contract Contract, Agent Agent);
+
+    public record class DeliverCargoToContract(Contract Contract, ShipCargo Cargo);
 
     public record class ContractTerm(DateTimeOffset Deadline, ContractPayment Payment, ContractDeliverGood[] Deliver);
 
@@ -48,6 +73,7 @@ public static partial class V2
 
         [JsonIgnore]
         public AccountAgent AccountAgent { set => _accountAgent ??= value; }
+        public AccountAgent GetAgent() => _accountAgent;
         public Task<Responses.Result<ShipNav>> Dock()
         => _accountAgent.API.DockShip(Symbol);
 
@@ -59,6 +85,12 @@ public static partial class V2
 
         public Task<Responses.Result<Ship>> UpdateFromServer()
         => _accountAgent.API.GetShip(Symbol);
+
+        public Task<Responses.Result<Contract>> NegociateContract()
+        => _accountAgent.API.NegociateContract(Symbol);
+
+        public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Contract contract, TradeSymbol trade, int units)
+        => _accountAgent.API.DeliverCargoToContract(contract.Id, Symbol, trade, units);
     }
 
     public record class ShipRegistration(string Name, FactionSymbol FactionSymbol, ShipRole Role);
