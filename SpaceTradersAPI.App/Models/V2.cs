@@ -165,7 +165,11 @@ public static partial class V2
 
     public record class ShipFuelConsumed(int Amount, DateTimeOffset Timestamp);
 
-    public record class ShipCooldown(string ShipSymbol, int TotalSeconds, int RemainingSeconds, DateTimeOffset? Expiration);
+    public record class ShipCooldown(string ShipSymbol, int TotalSeconds, int RemainingSeconds, DateTimeOffset? Expiration)
+    {
+        public Task Await()
+        => Task.Delay(TimeSpan.FromSeconds(RemainingSeconds));
+    }
 
     public record class ShipConditionEvent(ShipConditionEventSymbol Symbol, ShipConditionEventComponent Component, string Name, string Description);
 
