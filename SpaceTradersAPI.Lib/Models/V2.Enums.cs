@@ -1,4 +1,4 @@
-namespace SpaceTradersAPI.App.Models;
+namespace SpaceTradersAPI.Lib.Models;
 
 partial class V2
 {

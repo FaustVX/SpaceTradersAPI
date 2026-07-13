@@ -2,7 +2,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SpaceTradersAPI.App;
+namespace SpaceTradersAPI.Lib;
 
 public record class Account(Uri BaseAddress, AccountItem[] Accounts)
 {

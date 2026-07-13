@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SpaceTradersAPI.App.Models;
+namespace SpaceTradersAPI.Lib.Models;
 
 public static partial class V2
 {

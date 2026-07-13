@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 
-namespace SpaceTradersAPI.App.Responses;
+namespace SpaceTradersAPI.Lib.Responses;
 
 public record class Datas<T>(T Data);
 
