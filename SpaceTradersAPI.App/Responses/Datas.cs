@@ -13,7 +13,7 @@ public record class ShipNavWraper(Models.V2.ShipNav Nav);
 
 public record class ErrorResponse(Error Error);
 
-public record class Error(int Code, string Message, JsonObject Data)
+public record class Error(int Code, string Message, JsonObject? Data)
 {
     public static implicit operator Exception(Error err)
     => new(err.ToString());
