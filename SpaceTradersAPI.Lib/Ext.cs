@@ -1,4 +1,5 @@
-﻿using SpaceTradersAPI.Lib.Models;
+﻿using System.Diagnostics;
+using SpaceTradersAPI.Lib.Models;
 using SpaceTradersAPI.Lib.Responses;
 
 namespace SpaceTradersAPI.Lib;
@@ -15,6 +16,15 @@ public static class Ext
 
         public Task<Result<T>> MapErrorAsync(Func<Error, Task<Result<T>>> errorMapper)
         => task.ContinueWith(t => t.Result.MapError(e => errorMapper(e).Result), TaskContinuationOptions.ExecuteSynchronously);
+    }
+
+    extension<T>(Task<Result<T>> task)
+    where T : V2.IAwaitable
+    {
+        public Task Await()
+        => task.ValueOrThrowAsync()
+            .ContinueWith(t => t.Result.Await(), TaskContinuationOptions.ExecuteSynchronously)
+            .Unwrap();
     }
 
     extension<T>(IAsyncEnumerable<T> values)
@@ -49,6 +59,23 @@ public static class Ext
 
         public long DistanceWithSquared(V2.IPosition other)
         => Square(other.X - position.X) + Square(other.Y - position.Y);
+
+        public (int fuelCost, int duration)? CalculateTravelCost(V2.IPosition destination, V2.ShipNavFlightMode flightMode, int engineSpeed)
+        {
+            // https://github.com/SpaceTradersAPI/api-docs/wiki/Travel-Fuel-and-Time
+            var dist = position.DistanceWith(destination);
+
+            var (fuel, mult) = flightMode switch
+            {
+                V2.ShipNavFlightMode.Drift => (1, 250),
+                V2.ShipNavFlightMode.Stealth => ((int)Math.Max(1, Math.Round(dist, MidpointRounding.AwayFromZero)), 30),
+                V2.ShipNavFlightMode.Cruise => ((int)Math.Max(1, Math.Round(dist, MidpointRounding.AwayFromZero)), 25),
+                V2.ShipNavFlightMode.Burn => ((int)Math.Max(2, 2 * Math.Round(dist, MidpointRounding.AwayFromZero)), 12.5d),
+                _ => throw new UnreachableException(),
+            };
+
+            return (fuel, (int)Math.Round(Math.Round(Math.Max(1, dist), MidpointRounding.AwayFromZero) * (mult / engineSpeed) + 15, MidpointRounding.AwayFromZero));
+        }
 
         static long Square(int a)
         => a * (long)a;

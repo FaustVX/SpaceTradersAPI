@@ -10,25 +10,23 @@ if (accounts.Selected.Agents is [])
     var registration = await accounts.Selected.API.RegisterAgent("FAUSTVX", V2.FactionSymbol.Galactic).ValueOrThrowAsync();
     Console.WriteLine(registration.Agent.HeadQuarters);
     accounts.Selected.SelectedAgent = accounts.Selected.Agents[0];
+    var ship = await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-2").ValueOrThrowAsync();
+    Console.WriteLine(ship);
+    var shipPos = await ship.Nav.WaypointSymbol.GetWaypointData().ValueOrThrowAsync();
+    (V2.Waypoint, long) closerShipyard = (default!, long.MaxValue);
+    await foreach (var loc in accounts.API.ListWaypointInSystem(ship.Nav.WaypointSymbol.System, traits: [V2.WaypointTraitSymbol.Shipyard]))
+        if (loc.DistanceWithSquared(shipPos) is var dist && dist < closerShipyard.Item2)
+            closerShipyard = (loc, dist);
+    Console.WriteLine(closerShipyard);
+    await ship.Orbit();
+    await ship.Navigate(closerShipyard.Item1.Symbol);
 }
-var ship = await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-2").ValueOrThrowAsync();
-Console.WriteLine(ship);
-var shipPos = await ship.Nav.WaypointSymbol.GetWaypointData().ValueOrThrowAsync();
-(V2.Waypoint, long) closerShipyard = (default!, long.MaxValue);
-await foreach (var loc in accounts.API.ListWaypointInSystem(ship.Nav.WaypointSymbol.System, traits: [V2.WaypointTraitSymbol.Shipyard]))
 {
-    // Console.WriteLine(loc);
-    if (loc.DistanceWithSquared(shipPos) is var dist && dist < closerShipyard.Item2)
-        closerShipyard = (loc, dist);
+    var ship = await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-1").ValueOrThrowAsync();
+    Console.WriteLine($"Moving to {ship.Nav.Route}");
+    await ship.GetNav().Await();
+    Console.WriteLine("Arrived");
 }
-Console.WriteLine(closerShipyard);
-return;
-await ship.Dock();
-var contract = await ship.NegociateContract().MapErrorAsync(e => ship.GetAgent().API.GetContract(e.Data?["contractId"]!.GetValue<string>()!)).ValueOrThrowAsync();
-await ship.Orbit();
-Console.WriteLine(contract);
-var navigation = await ship.Navigate(ship.CreateLocation("F51")).ValueOrThrowAsync();
-await navigation.Nav.Route.Await();
 
 static async Task<Account> ReadAccounts(FileInfo accountsFile)
 {

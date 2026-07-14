@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -7,7 +8,7 @@ namespace SpaceTradersAPI.Lib.Models;
 public static partial class V2
 {
     [JsonConverter(typeof(JsonConverter))]
-    public readonly struct WaypointSymbol
+    public readonly struct WaypointSymbol : IEquatable<WaypointSymbol>
     {
         private class JsonConverter : JsonConverter<WaypointSymbol>
         {
@@ -44,6 +45,21 @@ public static partial class V2
             }
         }
 
+        public override int GetHashCode()
+        => HashCode.Combine(System, Waypoint);
+
+        public override bool Equals([NotNullWhen(true)] object? obj)
+        => obj is WaypointSymbol waypoint && Equals(waypoint);
+
+        public bool Equals(WaypointSymbol other)
+        => Waypoint == other.Waypoint && System == other.System;
+
+        public static bool operator ==(WaypointSymbol lhs, WaypointSymbol rhs)
+        => lhs.Equals(rhs);
+
+        public static bool operator !=(WaypointSymbol lhs, WaypointSymbol rhs)
+        => !lhs.Equals(rhs);
+
         public override readonly string ToString()
         => this switch
         {
@@ -53,7 +69,7 @@ public static partial class V2
     }
 
     [JsonConverter(typeof(JsonConverter))]
-    public readonly struct SystemSymbol
+    public readonly struct SystemSymbol : IEquatable<SystemSymbol>
     {
         private class JsonConverter : JsonConverter<SystemSymbol>
         {
@@ -90,6 +106,26 @@ public static partial class V2
         public SystemSymbol InitWith(Account account)
         => this with { Account = account };
 
+        public override int GetHashCode()
+        => HashCode.Combine(Sector, System);
+
+        public override bool Equals([NotNullWhen(true)] object? obj)
+        => obj switch
+        {
+            SystemSymbol sys => Equals(sys),
+            WaypointSymbol { System: {} sys } => Equals(sys),
+            _ => false,
+        };
+
+        public bool Equals(SystemSymbol other)
+        => System == other.System && Sector == other.Sector;
+
+        public static bool operator ==(SystemSymbol lhs, SystemSymbol rhs)
+        => lhs.Equals(rhs);
+
+        public static bool operator !=(SystemSymbol lhs, SystemSymbol rhs)
+        => !lhs.Equals(rhs);
+
         public override readonly string ToString()
         => $"{Sector}-{System}";
     }
@@ -98,6 +134,11 @@ public static partial class V2
     {
         public abstract int X { get; }
         public abstract int Y { get; }
+    }
+
+    public interface IAwaitable
+    {
+        public abstract Task Await();
     }
 
     public record class Agent(string AccountID, string Symbol, WaypointSymbol HeadQuarters, long Credits, FactionSymbol StartingFaction, int ShipCount)
@@ -266,17 +307,35 @@ public static partial class V2
 
         public WaypointSymbol CreateLocation(string localWaypoint)
         => Nav.WaypointSymbol.System.CreateLocalWaypoint(localWaypoint);
+
+        public Task<Responses.Result<ShipNav>> GetNav()
+        => _accountAgent.API.GetShipNav(Symbol);
+
+        public Task<Responses.Result<NavigateShip>> PatchNav(ShipNavFlightMode flightMode)
+        => _accountAgent.API.PatchShipNav(Symbol, flightMode.ToUpperCase());
+
+        public (int fuelCost, int duration)? CalculateTravelCost(Waypoint destination)
+        {
+            // https://github.com/SpaceTradersAPI/api-docs/wiki/Travel-Fuel-and-Time
+            if (destination.Symbol.System != Nav.WaypointSymbol.System)
+                return null;
+
+            return Nav.Route.Origin.CalculateTravelCost(destination, Nav.FlightMode, Engine.Speed);
+        }
     }
 
     public record class ShipRegistration(string Name, FactionSymbol FactionSymbol, ShipRole Role);
 
-    public record class ShipNav(WaypointSymbol WaypointSymbol, ShipNavRoute Route, ShipNavStatus Status, ShipNavFlightMode FlightMode)
+    public record class ShipNav(WaypointSymbol WaypointSymbol, ShipNavRoute Route, ShipNavStatus Status, ShipNavFlightMode FlightMode) : IAwaitable
     {
+        public Task Await()
+        => Route.Await();
+
         public ShipNav InitWith(Account account)
         => this with { WaypointSymbol = WaypointSymbol.InitWith(account), Route = Route.InitWith(account) };
     }
 
-    public record class ShipNavRoute(ShipNavRouteWaypoint Destination, ShipNavRouteWaypoint Origin, DateTimeOffset DepartureTime, DateTimeOffset Arrival)
+    public record class ShipNavRoute(ShipNavRouteWaypoint Destination, ShipNavRouteWaypoint Origin, DateTimeOffset DepartureTime, DateTimeOffset Arrival) : IAwaitable
     {
         public Task Await()
         => Task.Delay(TimeSpan.Max(TimeSpan.Zero, Arrival - DateTimeOffset.Now));
@@ -327,7 +386,7 @@ public static partial class V2
 
     public record class ShipFuelConsumed(int Amount, DateTimeOffset Timestamp);
 
-    public record class ShipCooldown(string ShipSymbol, int TotalSeconds, int RemainingSeconds, DateTimeOffset? Expiration)
+    public record class ShipCooldown(string ShipSymbol, int TotalSeconds, int RemainingSeconds, DateTimeOffset? Expiration) : IAwaitable
     {
         public Task Await()
         => Task.Delay(TimeSpan.FromSeconds(RemainingSeconds));

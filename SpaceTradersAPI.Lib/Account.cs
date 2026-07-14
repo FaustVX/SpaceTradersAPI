@@ -188,5 +188,13 @@ public record class AccountAgent(string Name, string Token)
         public Task<Responses.Result<Models.V2.NavigateShip>> NavigateShip(string shipSymbol, string waypointSymbol)
         => agent.Accounts.SendAsyncData<Models.V2.NavigateShip>(HttpMethod.Post, $"/my/ships/{shipSymbol}/navigate", agent.AgentToken, $$"""{"waypointSymbol":"{{waypointSymbol}}"}""")
         .MapvalueAsync(resp => resp.InitWith(agent.Accounts));
+
+        public Task<Responses.Result<Models.V2.ShipNav>> GetShipNav(string shipSymbol)
+        => agent.Accounts.SendAsyncData<Models.V2.ShipNav>(HttpMethod.Get, $"/my/ships/{shipSymbol}/nav", agent.AgentToken)
+        .MapvalueAsync(resp => resp.InitWith(agent.Accounts));
+
+        public Task<Responses.Result<Models.V2.NavigateShip>> PatchShipNav(string shipSymbol, string flightMode)
+        => agent.Accounts.SendAsyncData<Models.V2.NavigateShip>(HttpMethod.Patch, $"/my/ships/{shipSymbol}/nav", agent.AgentToken, $$"""{"flightMode":"{{flightMode}}"}""")
+        .MapvalueAsync(resp => resp.InitWith(agent.Accounts));
     }
 }
