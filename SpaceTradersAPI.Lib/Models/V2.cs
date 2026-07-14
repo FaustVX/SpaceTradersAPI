@@ -169,10 +169,10 @@ public static partial class V2
         => _accountAgent.API.FulfillContract(Id);
 
         public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Ship ship, TradeSymbol trade, int units)
-        => _accountAgent.API.DeliverCargoToContract(Id, ship.Symbol, trade, units);
+        => _accountAgent.API.DeliverCargoToContract(Id, ship.Symbol, trade.ToUpperCase(), units);
 
         public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Ship ship, ShipCargoItem cargoItem)
-        => _accountAgent.API.DeliverCargoToContract(Id, ship.Symbol, cargoItem.Symbol, cargoItem.Units);
+        => _accountAgent.API.DeliverCargoToContract(Id, ship.Symbol, cargoItem.Symbol.ToUpperCase(), cargoItem.Units);
 
         public IAsyncEnumerable<DeliverCargoToContract> DeliverAllCargoToContract(Ship ship)
         => ship.DeliverAllCargoToContract(this);
@@ -241,10 +241,10 @@ public static partial class V2
         => _accountAgent.API.NegociateContract(Symbol);
 
         public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Contract contract, TradeSymbol trade, int units)
-        => _accountAgent.API.DeliverCargoToContract(contract.Id, Symbol, trade, units);
+        => _accountAgent.API.DeliverCargoToContract(contract.Id, Symbol, trade.ToUpperCase(), units);
 
         public Task<Responses.Result<DeliverCargoToContract>> DeliverCargoToContract(Contract contract, ShipCargoItem cargoItem)
-        => _accountAgent.API.DeliverCargoToContract(contract.Id, Symbol, cargoItem.Symbol, cargoItem.Units);
+        => _accountAgent.API.DeliverCargoToContract(contract.Id, Symbol, cargoItem.Symbol.ToUpperCase(), cargoItem.Units);
 
         public async IAsyncEnumerable<DeliverCargoToContract> DeliverAllCargoToContract(Contract contract)
         {

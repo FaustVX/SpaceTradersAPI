@@ -181,8 +181,8 @@ public record class AccountAgent(string Name, string Token)
         => agent.Accounts.SendAsyncData<Models.V2.AcceptContract>(HttpMethod.Post, $"/my/contracts/{contractId}/fulfull", agent.AgentToken)
         .MapvalueAsync(resp => resp.InitWith(agent));
 
-        public Task<Responses.Result<Models.V2.DeliverCargoToContract>> DeliverCargoToContract(string contractId, string shipSymbol, Models.V2.TradeSymbol tradeSymbol, int units)
-        => agent.Accounts.SendAsyncData<Models.V2.DeliverCargoToContract>(HttpMethod.Post, $"/my/contracts/{contractId}/deliver", agent.AgentToken, $$"""{"shipSymbol":"{{shipSymbol}}","tradeSymbol":"{{tradeSymbol.ToUpperCase()}}","units":{{units}}}""")
+        public Task<Responses.Result<Models.V2.DeliverCargoToContract>> DeliverCargoToContract(string contractId, string shipSymbol, string tradeSymbol, int units)
+        => agent.Accounts.SendAsyncData<Models.V2.DeliverCargoToContract>(HttpMethod.Post, $"/my/contracts/{contractId}/deliver", agent.AgentToken, $$"""{"shipSymbol":"{{shipSymbol}}","tradeSymbol":"{{tradeSymbol}}","units":{{units}}}""")
         .MapvalueAsync(resp => resp.InitWith(agent));
 
         public Task<Responses.Result<Models.V2.NavigateShip>> NavigateShip(string shipSymbol, string waypointSymbol)
