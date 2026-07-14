@@ -29,11 +29,29 @@ public static class Ext
 
     extension<T>(IAsyncEnumerable<T> values)
     {
-        public async IAsyncEnumerable<TResult> MapValues<TResult>(Func<T, TResult> mapper)
+        public async IAsyncEnumerable<TResult> MapValuesAsync<TResult>(Func<T, TResult> mapper)
         {
             await foreach (var item in values)
                 yield return mapper(item);
         }
+    }
+
+    extension<T, TAccount>(IAsyncEnumerable<T> values)
+    where T : V2.IInitWith<T, TAccount>
+    where TAccount : IAccount
+    {
+        public async IAsyncEnumerable<T> MapInitAsync(TAccount account)
+        {
+            await foreach (var item in values)
+                yield return item.InitWith(account);
+        }
+    }
+    extension<T, TAccount>(Task<Result<T>> task)
+    where T : V2.IInitWith<T, TAccount>
+    where TAccount : IAccount
+    {
+        public Task<Result<T>> MapInitAsync(TAccount account)
+        => task.ContinueWith(t => new Result<T>(t.Result.ValueOrThrow.InitWith(account)), TaskContinuationOptions.ExecuteSynchronously);
     }
 
     extension<T>(T @enum)

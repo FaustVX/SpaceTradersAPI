@@ -141,7 +141,15 @@ public static partial class V2
         public abstract Task Await();
     }
 
+    public interface IInitWith<TThis, TAccount>
+    where TAccount : IAccount
+    where TThis : IInitWith<TThis, TAccount>
+    {
+        public abstract TThis InitWith(TAccount token);
+    }
+
     public record class Agent(string AccountID, string Symbol, WaypointSymbol HeadQuarters, long Credits, FactionSymbol StartingFaction, int ShipCount)
+    : IInitWith<Agent, AccountAgent>, IInitWith<Agent, Account>
     {
         private AccountAgent? _accountAgent = default!;
 
@@ -165,6 +173,7 @@ public static partial class V2
     }
 
     public record class RegisterAgent(string Token, Agent Agent, Faction Faction, Contract Contract, Ship[] Ships)
+    : IInitWith<RegisterAgent, AccountAgent>
     {
         public RegisterAgent InitWith(AccountAgent agent)
         {
@@ -184,7 +193,7 @@ public static partial class V2
     public record class ServerStatusResets(DateTimeOffset Next, string Frequency);
 
     public record class Faction(FactionSymbol Symbol, string Name, string Description, SystemSymbol HeadQuarters, FactionTrait[] Traits, bool IsRecruiting)
-    : Commons<FactionSymbol>(Symbol, Name, Description)
+    : Commons<FactionSymbol>(Symbol, Name, Description), IInitWith<Faction, Account>
     {
         public Faction InitWith(Account account)
         => this with { HeadQuarters = HeadQuarters.InitWith(account) };
@@ -194,6 +203,7 @@ public static partial class V2
     : Commons<FactionTraitSymbol>(Symbol, Name, Description);
 
     public record class Contract(string Id, FactionSymbol FactionSymbol, ContractType Type, ContractTerm Terms, bool Accepted, bool FulFilled, DateTimeOffset DeadlineToAccept)
+    : IInitWith<Contract, AccountAgent>
     {
         private AccountAgent _accountAgent = default!;
 
@@ -223,18 +233,21 @@ public static partial class V2
     }
 
     public record class AcceptContract(Contract Contract, Agent Agent)
+    : IInitWith<AcceptContract, AccountAgent>
     {
         public AcceptContract InitWith(AccountAgent agent)
         => this with { Contract = Contract.InitWith(agent), Agent = Agent.InitWith(agent) };
     }
 
     public record class DeliverCargoToContract(Contract Contract, ShipCargo Cargo)
+    : IInitWith<DeliverCargoToContract, AccountAgent>
     {
         public DeliverCargoToContract InitWith(AccountAgent agent)
         => this with { Contract = Contract.InitWith(agent) };
     }
 
     public record class ContractTerm(DateTimeOffset Deadline, ContractPayment Payment, ContractDeliverGood[] Deliver)
+    : IInitWith<ContractTerm, Account>
     {
         public ContractTerm InitWith(Account account)
         {
@@ -247,6 +260,7 @@ public static partial class V2
     public record class ContractPayment(int OnAccepted, int OnFulfilled);
 
     public record class ContractDeliverGood(TradeSymbol TradeSymbol, WaypointSymbol DestinationSymbol, int UnitsRequired, int UnitsFulFilled)
+    : IInitWith<ContractDeliverGood, Account>
     {
         public void Deconstruct(out TradeSymbol tradeSymbol, out WaypointSymbol destinationSymbol, out int unitsRemaining)
         => (tradeSymbol, destinationSymbol, unitsRemaining) = (TradeSymbol, DestinationSymbol, Math.Min(0, UnitsRequired - UnitsFulFilled));
@@ -256,6 +270,7 @@ public static partial class V2
     }
 
     public record class Ship(string Symbol, ShipRegistration Registration, ShipNav Nav, ShipCrew Crew, ShipFrame Frame, ShipReactor Reactor, ShipEngine Engine, ShipModule[] Modules, ShipMount[] Mounts, ShipCargo Cargo, ShipFuel Fuel, ShipCooldown Cooldown)
+    : IInitWith<Ship, AccountAgent>
     {
         private AccountAgent _accountAgent = default!;
 
@@ -326,7 +341,8 @@ public static partial class V2
 
     public record class ShipRegistration(string Name, FactionSymbol FactionSymbol, ShipRole Role);
 
-    public record class ShipNav(WaypointSymbol WaypointSymbol, ShipNavRoute Route, ShipNavStatus Status, ShipNavFlightMode FlightMode) : IAwaitable
+    public record class ShipNav(WaypointSymbol WaypointSymbol, ShipNavRoute Route, ShipNavStatus Status, ShipNavFlightMode FlightMode)
+    : IAwaitable, IInitWith<ShipNav, Account>
     {
         public Task Await()
         => Route.Await();
@@ -335,7 +351,8 @@ public static partial class V2
         => this with { WaypointSymbol = WaypointSymbol.InitWith(account), Route = Route.InitWith(account) };
     }
 
-    public record class ShipNavRoute(ShipNavRouteWaypoint Destination, ShipNavRouteWaypoint Origin, DateTimeOffset DepartureTime, DateTimeOffset Arrival) : IAwaitable
+    public record class ShipNavRoute(ShipNavRouteWaypoint Destination, ShipNavRouteWaypoint Origin, DateTimeOffset DepartureTime, DateTimeOffset Arrival)
+    : IAwaitable, IInitWith<ShipNavRoute, Account>
     {
         public Task Await()
         => Task.Delay(TimeSpan.Max(TimeSpan.Zero, Arrival - DateTimeOffset.Now));
@@ -344,7 +361,8 @@ public static partial class V2
         => this with { Destination = Destination.InitWith(account), Origin = Origin.InitWith(account) };
     }
 
-    public record class ShipNavRouteWaypoint(WaypointSymbol Symbol, WaypointType Type, int X, int Y) : IPosition
+    public record class ShipNavRouteWaypoint(WaypointSymbol Symbol, WaypointType Type, int X, int Y)
+    : IPosition, IInitWith<ShipNavRouteWaypoint, Account>
     {
         public ShipNavRouteWaypoint InitWith(Account account)
         => this with { Symbol = Symbol.InitWith(account) };
@@ -386,7 +404,8 @@ public static partial class V2
 
     public record class ShipFuelConsumed(int Amount, DateTimeOffset Timestamp);
 
-    public record class ShipCooldown(string ShipSymbol, int TotalSeconds, int RemainingSeconds, DateTimeOffset? Expiration) : IAwaitable
+    public record class ShipCooldown(string ShipSymbol, int TotalSeconds, int RemainingSeconds, DateTimeOffset? Expiration)
+    : IAwaitable
     {
         public Task Await()
         => Task.Delay(TimeSpan.FromSeconds(RemainingSeconds));
@@ -395,24 +414,28 @@ public static partial class V2
     public record class ShipConditionEvent(ShipConditionEventSymbol Symbol, ShipConditionEventComponent Component, string Name, string Description);
 
     public record class NavigateShip(ShipNav Nav, ShipFuel Fuel, ShipConditionEvent[] Events)
+    : IInitWith<NavigateShip, Account>
     {
         public NavigateShip InitWith(Account account)
         => this with { Nav = Nav.InitWith(account) };
     }
 
     public record class CreateChart(Chart Chart, Waypoint Waypoint, ChartTransaction Transaction, Agent Agent)
+    : IInitWith<CreateChart, AccountAgent>
     {
         public CreateChart InitWith(AccountAgent agent)
         => this with { Chart = Chart.InitWith(agent.Accounts), Waypoint = Waypoint.InitWith(agent.Accounts), Transaction = Transaction.InitWith(agent.Accounts), Agent = Agent.InitWith(agent) };
     }
 
     public record class Chart(WaypointSymbol WaypointSymbol, FactionSymbol SubmittedBy, DateTimeOffset SubmittedOn)
+    : IInitWith<Chart, Account>
     {
         public Chart InitWith(Account account)
         => this with { WaypointSymbol = WaypointSymbol.InitWith(account) };
     }
 
-    public record class Waypoint(WaypointSymbol Symbol, WaypointType Type, int X, int Y, WaypointOrbital[] Orbitals, WaypointSymbol? Orbits, WaypointFaction? Faction, WaypointTrait[] Traits, WaypointModifier[]? Modifiers, Chart? Chart, bool IsUnderConstruction) : IPosition
+    public record class Waypoint(WaypointSymbol Symbol, WaypointType Type, int X, int Y, WaypointOrbital[] Orbitals, WaypointSymbol? Orbits, WaypointFaction? Faction, WaypointTrait[] Traits, WaypointModifier[]? Modifiers, Chart? Chart, bool IsUnderConstruction)
+    : IPosition, IInitWith<Waypoint, Account>
     {
         public Waypoint InitWith(Account account)
         {
@@ -426,6 +449,7 @@ public static partial class V2
     public record class WaypointFaction(FactionSymbol Symbol);
 
     public record class WaypointOrbital(WaypointSymbol Symbol)
+    : IInitWith<WaypointOrbital, Account>
     {
         public WaypointOrbital InitWith(Account account)
         => this with { Symbol = Symbol.InitWith(account) };
@@ -438,6 +462,7 @@ public static partial class V2
     : Commons<WaypointModifierSymbol>(Symbol, Name, Description);
 
     public record class ChartTransaction(WaypointSymbol WaypointSymbol, string ShipSymbol, int TotalPrice, DateTimeOffset Timestamp)
+    : IInitWith<ChartTransaction, Account>
     {
         public ChartTransaction InitWith(Account account)
         => this with { WaypointSymbol = WaypointSymbol.InitWith(account) };
