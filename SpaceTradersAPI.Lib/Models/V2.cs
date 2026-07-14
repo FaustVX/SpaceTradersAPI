@@ -455,6 +455,18 @@ public static partial class V2
         => this with { Symbol = Symbol.InitWith(account) };
     }
 
+    public record class SystemWaypoint(WaypointSymbol Symbol, WaypointType Type, int X, int Y, WaypointOrbital[] Orbitals, WaypointSymbol? Orbits)
+    : IPosition, IInitWith<SystemWaypoint, Account>
+    {
+        public SystemWaypoint InitWith(Account account)
+        {
+            var waypoint = this with { Symbol = Symbol.InitWith(account), Orbits = Orbits?.InitWith(account) };
+            foreach (ref var orbit in waypoint.Orbitals.AsSpan())
+                orbit = orbit.InitWith(account);
+            return waypoint;
+        }
+    }
+
     public record class WaypointTrait(WaypointTraitSymbol Symbol, string Name, string Description)
     : Commons<WaypointTraitSymbol>(Symbol, Name, Description);
 
@@ -466,5 +478,17 @@ public static partial class V2
     {
         public ChartTransaction InitWith(Account account)
         => this with { WaypointSymbol = WaypointSymbol.InitWith(account) };
+    }
+
+    public record class System(SystemSymbol Symbol, SystemType Type, int X, int Y, string? Constellation, string? Name, WaypointFaction[] Factions, SystemWaypoint[] Waypoints)
+    : IPosition, IInitWith<System, Account>
+    {
+        public System InitWith(Account account)
+        {
+            var system = this with { Symbol = Symbol.InitWith(account)};
+            foreach (ref var waypoint in system.Waypoints.AsSpan())
+                waypoint = waypoint.InitWith(account);
+            return system;
+        }
     }
 }

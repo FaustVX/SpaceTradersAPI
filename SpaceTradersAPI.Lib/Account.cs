@@ -49,6 +49,13 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts) : IAccount
             // var str = await response.Content.ReadAsStringAsync();
             return (await response.Content.ReadFromJsonAsync<Responses.ErrorResponse>(jsonSerializerOptions))!.Error;
         }
+        catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.TooManyRequests)
+        {
+            // var str = await response.Content.ReadAsStringAsync();
+            var error = (await response.Content.ReadFromJsonAsync<Responses.ErrorResponse>(jsonSerializerOptions))!.Error;
+            await Task.Delay(TimeSpan.Max(TimeSpan.Zero, JsonSerializer.Deserialize<DateTimeOffset>(error.Data!["reset"]) - DateTimeOffset.Now));
+            return await SendAsyncRaw<T>(method, endpoint, token, content);
+        }
     }
 
     public Task<Responses.Result<T>> SendAsyncData<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
@@ -93,6 +100,17 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts) : IAccount
 
         public Task<Responses.Result<Models.V2.Waypoint>> GetWaypoint(Models.V2.WaypointSymbol waypointSymbol)
         => GetWaypoint(waypointSymbol.System.ToString(), waypointSymbol.ToString());
+
+        public IAsyncEnumerable<Models.V2.System> ListSystems()
+        => account.SendAsyncEnumerable<Models.V2.System>(HttpMethod.Get, "/systems?")
+        .MapInitAsync(account);
+
+        public Task<Responses.Result<Models.V2.System>> GetSystem(string systemSymbol)
+        => account.SendAsyncData<Models.V2.System>(HttpMethod.Get, $"/systems/{systemSymbol}")
+        .MapInitAsync(account);
+
+        public Task<Responses.Result<Models.V2.System>> GetSystem(Models.V2.SystemSymbol systemSymbol)
+        => GetSystem(systemSymbol.ToString());
     }
 }
 

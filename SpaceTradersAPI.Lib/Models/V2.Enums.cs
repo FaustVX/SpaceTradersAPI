@@ -501,4 +501,18 @@ partial class V2
         Civil_Unrest,
     }
 
+    public enum SystemType
+    {
+        Neutron_Star,
+        Red_Star,
+        Orange_Star,
+        Blue_Star,
+        Young_Star,
+        White_Dwarf,
+        Black_Hole,
+        Hypergiant,
+        Nebula,
+        Unstable,
+    }
+
 }
