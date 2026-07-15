@@ -515,4 +515,10 @@ partial class V2
         Unstable,
     }
 
+    public enum TransactionType
+    {
+        Purchase,
+        Sell,
+    }
+
 }

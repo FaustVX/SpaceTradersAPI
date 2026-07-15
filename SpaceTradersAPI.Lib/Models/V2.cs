@@ -329,6 +329,16 @@ public static partial class V2
         public Task<Responses.Result<NavigateShip>> PatchNav(ShipNavFlightMode flightMode)
         => _accountAgent.API.PatchShipNav(Symbol, flightMode.ToUpperCase());
 
+        public Task<Responses.Result<RefuelShip>> Refuel()
+        => _accountAgent.API.RefuelShip(Symbol);
+
+        public Task<Responses.Result<RefuelShip>> Refuel(int units)
+        => _accountAgent.API.RefuelShip(Symbol, units);
+
+        public Task<Responses.Result<RefuelShip>> Refuel(ShipCargoItem cargo)
+        => cargo is { Symbol: TradeSymbol.Fuel, Units: > 0 } && Cargo.Get(cargo) is not null ? _accountAgent.API.RefuelShip(Symbol, cargo.Units, fromCargo: true)
+        : Task.FromResult(new Responses.Result<RefuelShip>(new Responses.Error($$"""Invalid Cargo, expected: { Symbol: TradeSymbol.Fuel, Units: > 0 }, actual: {{cargo}}""")));
+
         public (int fuelCost, int duration)? CalculateTravelCost(Waypoint destination)
         {
             // https://github.com/SpaceTradersAPI/api-docs/wiki/Travel-Fuel-and-Time
@@ -395,7 +405,11 @@ public static partial class V2
     public record class ShipMount(ShipMountSymbol Symbol, string Name, string Description, int? Strength, string[]? Deposits, ShipRequirements Requirements)
     : ShipRequirementsInternals<ShipMountSymbol>(Symbol, Name, Description, Requirements);
 
-    public record class ShipCargo(int Capacity, int Units, ShipCargoItem[] Inventory);
+    public record class ShipCargo(int Capacity, int Units, ShipCargoItem[] Inventory)
+    {
+        public ShipCargoItem? Get(ShipCargoItem item)
+        => Inventory.FirstOrDefault(i => i.Symbol == item.Symbol && i.Units >= item.Units);
+    }
 
     public record class ShipCargoItem(TradeSymbol Symbol, string Name, string Description, int Units)
     : Commons<TradeSymbol>(Symbol, Name, Description);
@@ -490,5 +504,19 @@ public static partial class V2
                 waypoint = waypoint.InitWith(account);
             return system;
         }
+    }
+
+    public record class Transaction(WaypointSymbol WaypointSymbol, string ShipSymbol, TradeSymbol TradeSymbol, TransactionType Type, int Units, int PricePerUnit, int TotalPrice, DateTimeOffset Timestamp)
+    : IInitWith<Transaction, Account>
+    {
+        public Transaction InitWith(Account account)
+        => this with { WaypointSymbol = WaypointSymbol.InitWith(account) };
+    }
+
+    public record class RefuelShip(Agent Agent, ShipFuel Fuel, ShipCargo Cargo, Transaction Transaction)
+    : IInitWith<RefuelShip, AccountAgent>
+    {
+        public RefuelShip InitWith(AccountAgent agent)
+        => this with { Agent = Agent.InitWith(agent) };
     }
 }

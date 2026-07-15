@@ -11,13 +11,15 @@ public record class Meta(int Total, int Page, int Limit);
 
 public record class ShipNavWraper(Models.V2.ShipNav Nav);
 
-public record class ErrorResponse(Error Error);
+public record class ErrorResponse(HTTPError Error);
 
-public record class Error(int Code, string Message, JsonObject? Data)
+public record class Error(string Message)
 {
     public static implicit operator Exception(Error err)
     => new(err.ToString());
 }
+
+public record class HTTPError(int Code, string Message, JsonObject? Data): Error(Message);
 
 public readonly union Result<T>(T, Error)
 {

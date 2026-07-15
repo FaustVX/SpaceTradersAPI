@@ -216,5 +216,15 @@ public record class AccountAgent(string Name, string Token) : IAccount
         public Task<Responses.Result<Models.V2.NavigateShip>> PatchShipNav(string shipSymbol, string flightMode)
         => agent.Accounts.SendAsyncData<Models.V2.NavigateShip>(HttpMethod.Patch, $"/my/ships/{shipSymbol}/nav", agent.AgentToken, $$"""{"flightMode":"{{flightMode}}"}""")
         .MapInitAsync(agent.Accounts);
+
+        public Task<Responses.Result<Models.V2.RefuelShip>> RefuelShip(string shipSymbol, int? units = null, bool? fromCargo = null)
+        => agent.Accounts.SendAsyncData<Models.V2.RefuelShip>(HttpMethod.Patch, $"/my/ships/{shipSymbol}/refuel", agent.AgentToken, (units, fromCargo) switch
+        {
+            (null, null) => "{}",
+            (int u, bool c) => $$"""{"units":"{{u}}","fromCargo":"{{(c ? "true" : "false")}}"}""",
+            (int u, null) => $$"""{"units":"{{u}}"}""",
+            (null, bool c) => $$"""{"fromCargo":"{{(c ? "true" : "false")}}"}""",
+        })
+        .MapInitAsync(agent);
     }
 }
