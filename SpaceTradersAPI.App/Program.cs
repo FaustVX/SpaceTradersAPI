@@ -43,6 +43,7 @@ static async Task<Account> ReadAccounts(FileInfo accountsFile)
         {
             agent.Account = account;
             agent.Accounts = accounts;
+            await foreach (var _ in agent.API.ListMyShips());
         }
     }
 

@@ -153,6 +153,10 @@ public record class AccountAgent(string Name, string Token) : IAccount
     [JsonIgnore]
     public AccountItem Account { get; set; } = default!;
     [JsonIgnore]
+    public Dictionary<string, Models.V2.Ship> Ships { get; } = [];
+    [JsonIgnore]
+    public Models.V2.Ship SelectedShip { get => field ??= Ships.Values.FirstOrDefault()!; set; }
+    [JsonIgnore]
     public Endpoints API => field ??= new(this);
 
     public class Endpoints(AccountAgent agent)
@@ -161,9 +165,18 @@ public record class AccountAgent(string Name, string Token) : IAccount
         => agent.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken)
         .MapInitAsync(agent);
 
-        public Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
-        => agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
-        .MapInitAsync(agent);
+        public async Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
+        {
+            switch (await agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
+                .MapInitAsync(agent))
+            {
+                case Models.V2.Ship ship:
+                    agent.Ships[ship.Symbol] = ship;
+                    return ship;
+                case var result:
+                    return result;
+            }
+        }
 
         public Task<Responses.Result<Models.V2.Contract>> NegociateContract(string shipSymbol)
         => agent.Accounts.SendAsyncData<Models.V2.Contract>(HttpMethod.Post, $"/my/ships/{shipSymbol}/negotiate/contract", agent.AgentToken)
@@ -181,9 +194,15 @@ public record class AccountAgent(string Name, string Token) : IAccount
         => agent.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken)
         .MapInitAsync(agent);
 
-        public IAsyncEnumerable<Models.V2.Ship> ListMyShips()
-        => agent.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships?", agent.AgentToken)
-        .MapInitAsync(agent);
+        public async IAsyncEnumerable<Models.V2.Ship> ListMyShips()
+        {
+            await foreach (var ship in agent.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships?", agent.AgentToken)
+                .MapInitAsync(agent))
+            {
+                agent.Ships[ship.Symbol] = ship;
+                yield return ship;
+            }
+        }
 
         public IAsyncEnumerable<Models.V2.Contract> ListMyContracts()
         => agent.Accounts.SendAsyncEnumerable<Models.V2.Contract>(HttpMethod.Get, "/my/contracts?", agent.AgentToken)
