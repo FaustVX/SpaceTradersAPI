@@ -94,8 +94,8 @@ public static class Ext
 
             return (fuel, (int)Math.Round(Math.Round(Math.Max(1, dist), MidpointRounding.AwayFromZero) * (mult / engineSpeed) + 15, MidpointRounding.AwayFromZero));
         }
-
-        static long Square(int a)
-        => a * (long)a;
     }
+
+    public static long Square(long a)
+    => a * a;
 }
