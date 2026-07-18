@@ -6,7 +6,7 @@ using SpaceTradersAPI.Lib.Responses;
 
 var accounts = await ReadAccounts(ReadFile());
 
-while(true)
+while(!Console.IsInputRedirected || Console.In.Peek() is not -1)
 {
     switch (Console.Prompt("SpaceTrader>").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
     {
