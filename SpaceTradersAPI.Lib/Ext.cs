@@ -11,7 +11,7 @@ public static class Ext
         public Task<T> ValueOrThrowAsync()
         => task.ContinueWith(t => t.Result.ValueOrThrow, TaskContinuationOptions.ExecuteSynchronously);
 
-        public Task<Result<TResult>> MapvalueAsync<TResult>(Func<T, TResult> mapper)
+        public Task<Result<TResult>> MapValueAsync<TResult>(Func<T, TResult> mapper)
         => task.ContinueWith(t => t.Result.MapValue(mapper), TaskContinuationOptions.ExecuteSynchronously);
 
         public Task<Result<T>> MapErrorAsync(Func<Error, Task<Result<T>>> errorMapper)
@@ -22,7 +22,7 @@ public static class Ext
     where T : V2.IAwaitable
     {
         public Task Await()
-        => task.MapvalueAsync(r => r.Await());
+        => task.MapValueAsync(r => r.Await());
     }
 
     extension<T>(IAsyncEnumerable<T> values)
@@ -40,7 +40,7 @@ public static class Ext
     {
         public Task<Result<IAsyncEnumerable<T>>> MapInitAsync(TAccount account)
         {
-            return values.MapvalueAsync(Map);
+            return values.MapValueAsync(Map);
 
             async IAsyncEnumerable<T> Map(IAsyncEnumerable<T> e)
             {
