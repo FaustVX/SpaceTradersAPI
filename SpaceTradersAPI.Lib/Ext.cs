@@ -22,9 +22,7 @@ public static class Ext
     where T : V2.IAwaitable
     {
         public Task Await()
-        => task.ValueOrThrowAsync()
-            .ContinueWith(t => t.Result.Await(), TaskContinuationOptions.ExecuteSynchronously)
-            .Unwrap();
+        => task.MapvalueAsync(r => r.Await());
     }
 
     extension<T>(IAsyncEnumerable<T> values)
@@ -51,7 +49,7 @@ public static class Ext
     where TAccount : IAccount
     {
         public Task<Result<T>> MapInitAsync(TAccount account)
-        => task.ContinueWith(t => new Result<T>(t.Result.ValueOrThrow.InitWith(account)), TaskContinuationOptions.ExecuteSynchronously);
+        => task.ContinueWith(t => t.Result.MapValue(v => v.InitWith(account)), TaskContinuationOptions.ExecuteSynchronously);
     }
 
     extension<T>(T @enum)
