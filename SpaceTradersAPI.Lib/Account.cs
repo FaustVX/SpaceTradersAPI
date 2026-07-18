@@ -44,17 +44,17 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts) : IAccount
             response.EnsureSuccessStatusCode();
             return (await response.Content.ReadFromJsonAsync<T>(jsonSerializerOptions))!;
         }
-        catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.Forbidden)
-        {
-            // var str = await response.Content.ReadAsStringAsync();
-            return (await response.Content.ReadFromJsonAsync<Responses.ErrorResponse>(jsonSerializerOptions))!.Error;
-        }
         catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.TooManyRequests)
         {
             // var str = await response.Content.ReadAsStringAsync();
             var error = (await response.Content.ReadFromJsonAsync<Responses.ErrorResponse>(jsonSerializerOptions))!.Error;
             await Task.Delay(TimeSpan.Max(TimeSpan.Zero, JsonSerializer.Deserialize<DateTimeOffset>(error.Data!["reset"]) - DateTimeOffset.Now));
             return await SendAsyncRaw<T>(method, endpoint, token, content);
+        }
+        catch (HttpRequestException)
+        {
+            // var str = await response.Content.ReadAsStringAsync();
+            return (await response.Content.ReadFromJsonAsync<Responses.ErrorResponse>(jsonSerializerOptions))!.Error;
         }
     }
 
