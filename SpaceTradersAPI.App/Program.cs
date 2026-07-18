@@ -9,28 +9,28 @@ while(true)
 {
     switch (Console.Prompt("SpaceTrader > ").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
     {
-        case [] or ["--help"]:
-            Console.WriteLine("[sel[ect] | list | quit | --help]");
-            break;
-        case ["sel" or "select", .. var selection]:
-            ParseSelect(selection, ["sel[ect]"]);
+        case [("sel" or "select") and var sel, .. var selection]:
+            ParseSelect(selection, [sel]);
             break;
         case ["list", .. var selection]:
-            ParseList(selection, ["list"]);
+            await ParseList(selection, ["list"]);
+            break;
+        case ["info", .. var selection]:
+            await ParseInfo(selection, ["info"]);
             break;
         case ["quit"]:
             Environment.Exit(0);
             break;
+        case [] or ["--help"] or _:
+            Console.WriteLine("[sel[ect] | list | info | quit | --help]");
+            break;
     }
 }
 
-void ParseSelect(ReadOnlySpan<string> selection, ReadOnlySpan<string> previousCommands)
+void ParseSelect(string[] selection, string[] previousCommands)
 {
     switch (selection)
     {
-        case [] or ["--help"]:
-            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | --help]");
-            break;
         case ["account", .. var account]:
             ParseAccount(account, [..previousCommands, "account"]);
             break;
@@ -40,17 +40,22 @@ void ParseSelect(ReadOnlySpan<string> selection, ReadOnlySpan<string> previousCo
         case ["ship", .. var ship]:
             ParseShip(ship, [..previousCommands, "ship"]);
             break;
+        case [] or ["--help"] or _:
+            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | --help]");
+            break;
     }
 
-    void ParseAccount(ReadOnlySpan<string> account, ReadOnlySpan<string> previousCommands)
+    void ParseAccount(string[] account, string[] previousCommands)
     {
         switch (account)
         {
-            case [] or ["--help"]:
-                Console.WriteLine($"{previousCommands.Concat()} [<accountName> | --help]");
-                break;
+            case ["--help"]:
+                goto HELP;
             case [var name]:
                 accounts.Selected = AssignAccount(accounts, name);
+                break;
+            case [] or _: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<accountName> | --help]");
                 break;
         }
 
@@ -63,19 +68,22 @@ void ParseSelect(ReadOnlySpan<string> selection, ReadOnlySpan<string> previousCo
             }
             (Console.ForegroundColor, var fore) = (ConsoleColor.Red, Console.ForegroundColor);
             Console.WriteLine($"Unknown account <{name}>");
+            Console.ForegroundColor = fore;
             return accounts.Selected;
         }
     }
 
-    void ParseAgent(ReadOnlySpan<string> agent, ReadOnlySpan<string> previousCommands)
+    void ParseAgent(string[] agent, string[] previousCommands)
     {
         switch (agent)
         {
-            case [] or ["--help"]:
-                Console.WriteLine($"{previousCommands.Concat()} [<agentName> | --help]");
-                break;
+            case ["--help"]:
+                goto HELP;
             case [var name]:
                 accounts.Selected.SelectedAgent = AssignAgent(accounts, name);
+                break;
+            case [] or _: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<agentName> | --help]");
                 break;
         }
 
@@ -88,19 +96,22 @@ void ParseSelect(ReadOnlySpan<string> selection, ReadOnlySpan<string> previousCo
             }
             (Console.ForegroundColor, var fore) = (ConsoleColor.Red, Console.ForegroundColor);
             Console.WriteLine($"Unknown agent <{name}>");
+            Console.ForegroundColor = fore;
             return accounts.Selected.SelectedAgent;
         }
     }
 
-    void ParseShip(ReadOnlySpan<string> ship, ReadOnlySpan<string> previousCommands)
+    void ParseShip(string[] ship, string[] previousCommands)
     {
         switch (ship)
         {
-            case [] or ["--help"]:
-                Console.WriteLine($"{previousCommands.Concat()} [<shipName> | --help]");
-                break;
+            case ["--help"]:
+                goto HELP;
             case [var name]:
                 accounts.Selected.SelectedAgent.SelectedShip = AssignShip(accounts, name);
+                break;
+            case [] or _: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<shipName> | --help]");
                 break;
         }
 
@@ -110,67 +121,103 @@ void ParseSelect(ReadOnlySpan<string> selection, ReadOnlySpan<string> previousCo
                 return ship;
             (Console.ForegroundColor, var fore) = (ConsoleColor.Red, Console.ForegroundColor);
             Console.WriteLine($"Unknown ship <{name}>");
+            Console.ForegroundColor = fore;
             return accounts.Selected.SelectedAgent.SelectedShip;
         }
     }
 }
 
-void ParseList(ReadOnlySpan<string> selection, ReadOnlySpan<string> previousCommands)
+async Task ParseList(string[] selection, string[] previousCommands)
 {
     switch (selection)
     {
-        case [] or ["--help"]:
-            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | --help]");
-            break;
         case ["account", .. var account]:
             ParseAccount(account, [..previousCommands, "account"]);
             break;
         case ["agent", .. var agent]:
-            ParseAgent(agent, [..previousCommands, "agent"]);
+            await ParseAgent(agent, [..previousCommands, "agent"]);
             break;
         case ["ship", .. var ship]:
             ParseShip(ship, [..previousCommands, "ship"]);
             break;
+        case [] or ["--help"] or _:
+            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | --help]");
+            break;
     }
 
-    void ParseAccount(ReadOnlySpan<string> account, ReadOnlySpan<string> previousCommands)
+    void ParseAccount(string[] account, string[] previousCommands)
     {
         switch (account)
         {
-            case ["--help"]:
-                Console.WriteLine($"{previousCommands.Concat()} [--help]");
-                break;
             case []:
                 foreach (var a in accounts.Accounts)
                     Console.WriteLine($"Account: {(a == accounts.Selected ? '*' : ' ')}{a.Name}");
                 break;
+            case ["--help"] or _:
+                Console.WriteLine($"{previousCommands.Concat()} [--help]");
+                break;
         }
     }
 
-    void ParseAgent(ReadOnlySpan<string> agent, ReadOnlySpan<string> previousCommands)
+    async Task ParseAgent(string[] agent, string[] previousCommands)
     {
         switch (agent)
         {
-            case ["--help"]:
-                Console.WriteLine($"{previousCommands.Concat()} [--help]");
-                break;
+            case ["public"]:
+                await foreach(var a in accounts.API.ListPublicAgents())
+                    Console.WriteLine(a);
+                    break;
             case []:
                 foreach (var a in accounts.Selected.Agents)
                     Console.WriteLine($"Agent: {(a == accounts.Selected.SelectedAgent ? '*' : ' ')}{a.Name}");
                 break;
+            case ["--help"] or _:
+                Console.WriteLine($"{previousCommands.Concat()} [public | --help]");
+                break;
         }
     }
 
-    void ParseShip(ReadOnlySpan<string> ship, ReadOnlySpan<string> previousCommands)
+    void ParseShip(string[] ship, string[] previousCommands)
     {
         switch (ship)
         {
-            case ["--help"]:
-                Console.WriteLine($"{previousCommands.Concat()} [--help]");
-                break;
             case []:
                 foreach (var a in accounts.Selected.SelectedAgent.Ships)
                     Console.WriteLine($"Ship: {(a.Value == accounts.Selected.SelectedAgent.SelectedShip ? '*' : ' ')}{a.Key}");
+                break;
+            case ["--help"] or _:
+                Console.WriteLine($"{previousCommands.Concat()} [--help]");
+                break;
+        }
+    }
+}
+
+async Task ParseInfo(string[] selection, string[] previousCommands)
+{
+    switch (selection)
+    {
+        case ["ship", .. var ship]:
+            await ParseShip(ship, [..previousCommands, "ship"]);
+            break;
+        case [] or ["--help"] or _:
+            Console.WriteLine($"{previousCommands.Concat()} [ship | --help]");
+            break;
+    }
+
+    async Task ParseShip(string[] selection, string[] previousCommands)
+    {
+        switch (selection)
+        {
+            case ["--help"]:
+                goto HELP;
+            case []:
+                Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetShip(accounts.Selected.SelectedAgent.SelectedShip.Symbol));
+                break;
+            case [var shipName]:
+                Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetShip(shipName));
+                break;
+            default: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<shipName> | --help]");
                 break;
         }
     }
@@ -223,7 +270,7 @@ static FileInfo ReadFile()
 
 static class Ext
 {
-    extension(ReadOnlySpan<string> strings)
+    extension(string[] strings)
     {
         public string Concat()
         => string.Join(' ', strings);
