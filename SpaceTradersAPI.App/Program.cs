@@ -141,9 +141,8 @@ async Task ParseList(string[] selection, string[] previousCommands)
         case ["ship", .. var ship]:
             ParseShip(ship, [..previousCommands, "ship"]);
             break;
-        case ["factions"]:
-            await foreach (var f in accounts.API.ListFactions())
-                Console.WriteLine(f);
+        case ["factions", .. var factions]:
+            await ParseFactions(factions, [..previousCommands, "factions"]);
             break;
         case ["systems"]:
             await foreach (var s in accounts.API.ListSystems())
@@ -178,7 +177,7 @@ async Task ParseList(string[] selection, string[] previousCommands)
             case ["public"]:
                 await foreach(var a in accounts.API.ListPublicAgents())
                     Console.WriteLine(a);
-                    break;
+                break;
             case []:
                 foreach (var a in accounts.Selected.Agents)
                     Console.WriteLine($"Agent: {(a == accounts.Selected.SelectedAgent ? '*' : ' ')}{a.Name}");
@@ -199,6 +198,24 @@ async Task ParseList(string[] selection, string[] previousCommands)
                 break;
             case ["--help"] or _:
                 Console.WriteLine($"{previousCommands.Concat()} [--help]");
+                break;
+        }
+    }
+
+    async Task ParseFactions(string[] factions, string[] previousCommands)
+    {
+        switch (factions)
+        {
+            case ["public"]:
+                await foreach(var a in accounts.API.ListFactions())
+                    Console.WriteLine(a);
+                break;
+            case []:
+                await foreach (var f in accounts.Selected.SelectedAgent.API.GetMyFactions())
+                    Console.WriteLine(f);
+                break;
+            case ["--help"] or _:
+                Console.WriteLine($"{previousCommands.Concat()} [public | --help]");
                 break;
         }
     }

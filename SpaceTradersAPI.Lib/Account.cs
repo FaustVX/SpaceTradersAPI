@@ -138,9 +138,6 @@ public record class AccountItem(string Name, string Token) : IAccount
                 File.WriteAllText(account.Accounts.File.FullName, JsonSerializer.Serialize(account.Accounts, new JsonSerializerOptions(JsonSerializerDefaults.General) { WriteIndented = true, }));
                 return registration.InitWith(accountAgent);
             });
-
-        public IAsyncEnumerable<Models.V2.AgentFaction> GetMyFactions()
-        => account.Accounts.SendAsyncEnumerable<Models.V2.AgentFaction>(HttpMethod.Get, "/my/factions?", account.AccountToken);
     }
 }
 
@@ -162,6 +159,9 @@ public record class AccountAgent(string Name, string Token) : IAccount
         public Task<Responses.Result<Models.V2.Agent>> GetAgent()
         => agent.Account.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken)
         .MapInitAsync(agent);
+
+        public IAsyncEnumerable<Models.V2.AgentFaction> GetMyFactions()
+        => agent.Account.Accounts.SendAsyncEnumerable<Models.V2.AgentFaction>(HttpMethod.Get, "/my/factions?", agent.AgentToken);
 
         public async Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
         {
