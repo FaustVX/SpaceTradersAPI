@@ -25,11 +25,14 @@ while(true)
         case ["negociate", .. var selection]:
             await ParseNegociate(selection, ["negociate"]);
             break;
+        case ["ship", .. var selection]:
+            await ParseShip(selection, ["ship"]);
+            break;
         case ["quit"]:
             Environment.Exit(0);
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine("[sel[ect] | list | info | register | negociate | quit | --help]");
+            Console.WriteLine("[sel[ect] | list | info | register | negociate | ship | quit | --help]");
             break;
     }
 }
@@ -298,7 +301,7 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case []:
-                Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetShip(accounts.Selected.SelectedAgent.SelectedShip.Symbol));
+                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.UpdateFromServer());
                 break;
             case [var shipName]:
                 Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetShip(shipName));
@@ -316,7 +319,7 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case [var waypoint] when V2.WaypointSymbol.TryParse(waypoint, default, out var wp):
-                Console.WriteLine(await accounts.API.GetWaypoint(wp.InitWith(accounts)));
+                Console.WriteLine(await wp.InitWith(accounts).GetWaypointData());
                 break;
             case [] or _: HELP:
                 Console.WriteLine($"{previousCommands.Concat()} [<waypoint> | --help]");
@@ -363,7 +366,7 @@ async Task ParseRegister(string[] selection, string[] previousCommands)
             Console.WriteLine(await accounts.Selected.API.RegisterAgent(name, fac));
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} agent <name> <faction>");
+            Console.WriteLine($"{previousCommands.Concat()} [agent <name> <faction> | --help]");
             break;
     }
 }
@@ -376,7 +379,29 @@ async Task ParseNegociate(string[] selection, string[] previousCommands)
             Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.NegociateContract());
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} contract");
+            Console.WriteLine($"{previousCommands.Concat()} [contract | --help]");
+            break;
+    }
+}
+
+async Task ParseShip(string[] selection, string[] previousCommands)
+{
+    switch (selection)
+    {
+        case ["dock"]:
+            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Dock());
+            break;
+        case ["orbit"]:
+            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Orbit());
+            break;
+        case ["chart"]:
+            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.CreateChart());
+            break;
+        case ["info"]:
+            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.UpdateFromServer());
+            break;
+        case [] or ["--help"] or _:
+            Console.WriteLine($"{previousCommands.Concat()} [dock | orbit | chart | info | --help]");
             break;
     }
 }
