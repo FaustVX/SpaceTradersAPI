@@ -7,7 +7,7 @@ var accounts = await ReadAccounts(ReadFile());
 
 while(true)
 {
-    switch (Console.Prompt("SpaceTrader > ").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    switch (Console.Prompt("SpaceTrader>").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
     {
         case [("sel" or "select") and var sel, .. var selection]:
             ParseSelect(selection, [sel]);
@@ -199,8 +199,17 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
         case ["ship", .. var ship]:
             await ParseShip(ship, [..previousCommands, "ship"]);
             break;
+        case ["server"]:
+            Console.WriteLine(await accounts.API.GetServerStatus());
+            break;
+        case [("way" or "waypoint") and var wp, .. var waypoint]:
+            await ParseWaypoint(waypoint, [..previousCommands, wp]);
+            break;
+        case ["system", .. var system]:
+            await ParseSystem(system, [..previousCommands, "system"]);
+            break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [ship | --help]");
+            Console.WriteLine($"{previousCommands.Concat()} [ship | server | way[point] | system | --help]");
             break;
     }
 
@@ -218,6 +227,36 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
                 break;
             default: HELP:
                 Console.WriteLine($"{previousCommands.Concat()} [<shipName> | --help]");
+                break;
+        }
+    }
+
+    async Task ParseWaypoint(string[] selection, string[] previousCommands)
+    {
+        switch (selection)
+        {
+            case ["--help"]:
+                goto HELP;
+            case [var waypoint] when V2.WaypointSymbol.TryParse(waypoint, default, out var wp):
+                Console.WriteLine(await accounts.API.GetWaypoint(wp.InitWith(accounts)));
+                break;
+            case [] or _: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<waypoint> | --help]");
+                break;
+        }
+    }
+
+    async Task ParseSystem(string[] selection, string[] previousCommands)
+    {
+        switch (selection)
+        {
+            case ["--help"]:
+                goto HELP;
+            case [var system] when V2.SystemSymbol.TryParse(system, default, out var wp):
+                Console.WriteLine(await accounts.API.GetSystem(wp.InitWith(accounts)));
+                break;
+            case [] or _: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<system> | --help]");
                 break;
         }
     }
