@@ -132,7 +132,7 @@ public record class AccountItem(string Name, string Token) : IAccount
         => account.Accounts.SendAsyncData<Models.V2.RegisterAgent>(HttpMethod.Post, "/register", account.AccountToken, $$"""{"symbol":"{{symbol}}","faction":"{{faction.ToUpperCase()}}"}""")
             .MapvalueAsync(registration =>
             {
-                var accountAgent = new AccountAgent(registration.Agent.Symbol, registration.Token) { Accounts = account.Accounts, Account = account };
+                var accountAgent = new AccountAgent(registration.Agent.Symbol, registration.Token) { Account = account };
                 account.Agents.Add(accountAgent);
                 account.SelectedAgent = accountAgent;
                 File.WriteAllText(account.Accounts.File.FullName, JsonSerializer.Serialize(account.Accounts, new JsonSerializerOptions(JsonSerializerDefaults.General) { WriteIndented = true, }));
@@ -149,8 +149,6 @@ public record class AccountAgent(string Name, string Token) : IAccount
     [JsonIgnore]
     public AuthenticationHeaderValue AgentToken => field ??= new("Bearer", Token);
     [JsonIgnore]
-    public Account Accounts { get; set; } = default!;
-    [JsonIgnore]
     public AccountItem Account { get; set; } = default!;
     [JsonIgnore]
     public Dictionary<string, Models.V2.Ship> Ships { get; } = [];
@@ -162,12 +160,12 @@ public record class AccountAgent(string Name, string Token) : IAccount
     public class Endpoints(AccountAgent agent)
     {
         public Task<Responses.Result<Models.V2.Agent>> GetAgent()
-        => agent.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken)
+        => agent.Account.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken)
         .MapInitAsync(agent);
 
         public async Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
         {
-            switch (await agent.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
+            switch (await agent.Account.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
                 .MapInitAsync(agent))
             {
                 case Models.V2.Ship ship:
@@ -179,24 +177,24 @@ public record class AccountAgent(string Name, string Token) : IAccount
         }
 
         public Task<Responses.Result<Models.V2.Contract>> NegociateContract(string shipSymbol)
-        => agent.Accounts.SendAsyncData<Models.V2.Contract>(HttpMethod.Post, $"/my/ships/{shipSymbol}/negotiate/contract", agent.AgentToken)
+        => agent.Account.Accounts.SendAsyncData<Models.V2.Contract>(HttpMethod.Post, $"/my/ships/{shipSymbol}/negotiate/contract", agent.AgentToken)
         .MapInitAsync(agent);
 
         public Task<Responses.Result<Models.V2.ShipNav>> DockShip(string shipSymbol)
-        => agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken)
-        .MapvalueAsync(resp => resp.Nav).MapInitAsync(agent.Accounts);
+        => agent.Account.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken)
+        .MapvalueAsync(resp => resp.Nav).MapInitAsync(agent.Account.Accounts);
 
         public Task<Responses.Result<Models.V2.ShipNav>> OrbitShip(string shipSymbol)
-        => agent.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/orbit", agent.AgentToken)
-        .MapvalueAsync(resp => resp.Nav).MapInitAsync(agent.Accounts);
+        => agent.Account.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/orbit", agent.AgentToken)
+        .MapvalueAsync(resp => resp.Nav).MapInitAsync(agent.Account.Accounts);
 
         public Task<Responses.Result<Models.V2.CreateChart>> CreateChart(string shipSymbol)
-        => agent.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken)
+        => agent.Account.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken)
         .MapInitAsync(agent);
 
         public async IAsyncEnumerable<Models.V2.Ship> ListMyShips()
         {
-            await foreach (var ship in agent.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships?", agent.AgentToken)
+            await foreach (var ship in agent.Account.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships?", agent.AgentToken)
                 .MapInitAsync(agent))
             {
                 agent.Ships[ship.Symbol] = ship;
@@ -205,39 +203,39 @@ public record class AccountAgent(string Name, string Token) : IAccount
         }
 
         public IAsyncEnumerable<Models.V2.Contract> ListMyContracts()
-        => agent.Accounts.SendAsyncEnumerable<Models.V2.Contract>(HttpMethod.Get, "/my/contracts?", agent.AgentToken)
+        => agent.Account.Accounts.SendAsyncEnumerable<Models.V2.Contract>(HttpMethod.Get, "/my/contracts?", agent.AgentToken)
         .MapInitAsync(agent);
 
         public Task<Responses.Result<Models.V2.Contract>> GetContract(string contractId)
-        => agent.Accounts.SendAsyncData<Models.V2.Contract>(HttpMethod.Get, $"/my/contracts/{contractId}", agent.AgentToken)
+        => agent.Account.Accounts.SendAsyncData<Models.V2.Contract>(HttpMethod.Get, $"/my/contracts/{contractId}", agent.AgentToken)
         .MapInitAsync(agent);
 
         public Task<Responses.Result<Models.V2.AcceptContract>> AcceptContract(string contractId)
-        => agent.Accounts.SendAsyncData<Models.V2.AcceptContract>(HttpMethod.Post, $"/my/contracts/{contractId}/accept", agent.AgentToken)
+        => agent.Account.Accounts.SendAsyncData<Models.V2.AcceptContract>(HttpMethod.Post, $"/my/contracts/{contractId}/accept", agent.AgentToken)
         .MapInitAsync(agent);
 
         public Task<Responses.Result<Models.V2.AcceptContract>> FulfillContract(string contractId)
-        => agent.Accounts.SendAsyncData<Models.V2.AcceptContract>(HttpMethod.Post, $"/my/contracts/{contractId}/fulfull", agent.AgentToken)
+        => agent.Account.Accounts.SendAsyncData<Models.V2.AcceptContract>(HttpMethod.Post, $"/my/contracts/{contractId}/fulfull", agent.AgentToken)
         .MapInitAsync(agent);
 
         public Task<Responses.Result<Models.V2.DeliverCargoToContract>> DeliverCargoToContract(string contractId, string shipSymbol, string tradeSymbol, int units)
-        => agent.Accounts.SendAsyncData<Models.V2.DeliverCargoToContract>(HttpMethod.Post, $"/my/contracts/{contractId}/deliver", agent.AgentToken, $$"""{"shipSymbol":"{{shipSymbol}}","tradeSymbol":"{{tradeSymbol}}","units":{{units}}}""")
+        => agent.Account.Accounts.SendAsyncData<Models.V2.DeliverCargoToContract>(HttpMethod.Post, $"/my/contracts/{contractId}/deliver", agent.AgentToken, $$"""{"shipSymbol":"{{shipSymbol}}","tradeSymbol":"{{tradeSymbol}}","units":{{units}}}""")
         .MapInitAsync(agent);
 
         public Task<Responses.Result<Models.V2.NavigateShip>> NavigateShip(string shipSymbol, string waypointSymbol)
-        => agent.Accounts.SendAsyncData<Models.V2.NavigateShip>(HttpMethod.Post, $"/my/ships/{shipSymbol}/navigate", agent.AgentToken, $$"""{"waypointSymbol":"{{waypointSymbol}}"}""")
-        .MapInitAsync(agent.Accounts);
+        => agent.Account.Accounts.SendAsyncData<Models.V2.NavigateShip>(HttpMethod.Post, $"/my/ships/{shipSymbol}/navigate", agent.AgentToken, $$"""{"waypointSymbol":"{{waypointSymbol}}"}""")
+        .MapInitAsync(agent.Account.Accounts);
 
         public Task<Responses.Result<Models.V2.ShipNav>> GetShipNav(string shipSymbol)
-        => agent.Accounts.SendAsyncData<Models.V2.ShipNav>(HttpMethod.Get, $"/my/ships/{shipSymbol}/nav", agent.AgentToken)
-        .MapInitAsync(agent.Accounts);
+        => agent.Account.Accounts.SendAsyncData<Models.V2.ShipNav>(HttpMethod.Get, $"/my/ships/{shipSymbol}/nav", agent.AgentToken)
+        .MapInitAsync(agent.Account.Accounts);
 
         public Task<Responses.Result<Models.V2.NavigateShip>> PatchShipNav(string shipSymbol, string flightMode)
-        => agent.Accounts.SendAsyncData<Models.V2.NavigateShip>(HttpMethod.Patch, $"/my/ships/{shipSymbol}/nav", agent.AgentToken, $$"""{"flightMode":"{{flightMode}}"}""")
-        .MapInitAsync(agent.Accounts);
+        => agent.Account.Accounts.SendAsyncData<Models.V2.NavigateShip>(HttpMethod.Patch, $"/my/ships/{shipSymbol}/nav", agent.AgentToken, $$"""{"flightMode":"{{flightMode}}"}""")
+        .MapInitAsync(agent.Account.Accounts);
 
         public Task<Responses.Result<Models.V2.RefuelShip>> RefuelShip(string shipSymbol, int? units = null, bool? fromCargo = null)
-        => agent.Accounts.SendAsyncData<Models.V2.RefuelShip>(HttpMethod.Patch, $"/my/ships/{shipSymbol}/refuel", agent.AgentToken, (units, fromCargo) switch
+        => agent.Account.Accounts.SendAsyncData<Models.V2.RefuelShip>(HttpMethod.Patch, $"/my/ships/{shipSymbol}/refuel", agent.AgentToken, (units, fromCargo) switch
         {
             (null, null) => "{}",
             (int u, bool c) => $$"""{"units":"{{u}}","fromCargo":"{{(c ? "true" : "false")}}"}""",

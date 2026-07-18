@@ -22,10 +22,12 @@ if (accounts.Selected.Agents is [])
     await ship.Navigate(closerShipyard.Item1.Symbol);
 }
 {
-    var ship = await accounts.Selected.SelectedAgent.API.GetShip("FAUSTVX-1").ValueOrThrowAsync();
-    Console.WriteLine($"Moving to {ship.Nav.Route}");
-    await ship.GetNav().Await();
-    Console.WriteLine("Arrived");
+    var ship = accounts.Selected.SelectedAgent.SelectedShip;
+    // await ship.PatchNav(V2.ShipNavFlightMode.Drift);
+    Console.WriteLine(ship);
+    await foreach (var waypoint in accounts.API.ListWaypointInSystem(ship.Nav.WaypointSymbol.System, V2.WaypointType.Moon, [V2.WaypointTraitSymbol.Frozen, V2.WaypointTraitSymbol.Marketplace]))
+        Console.WriteLine($"{waypoint}: {ship.CalculateTravelCost(waypoint)}");
+    await ship.Nav.Await();
 }
 
 static async Task<Account> ReadAccounts(FileInfo accountsFile)
@@ -42,7 +44,6 @@ static async Task<Account> ReadAccounts(FileInfo accountsFile)
         foreach (var agent in account.Agents)
         {
             agent.Account = account;
-            agent.Accounts = accounts;
             await foreach (var _ in agent.API.ListMyShips());
         }
     }

@@ -157,7 +157,7 @@ public static partial class V2
         public AccountAgent? AccountAgent { set => _accountAgent ??= value; }
 
         public Agent InitWith(AccountAgent agent)
-        => this with { HeadQuarters = HeadQuarters.InitWith(agent.Accounts), AccountAgent = agent };
+        => this with { HeadQuarters = HeadQuarters.InitWith(agent.Account.Accounts), AccountAgent = agent };
 
         public Agent InitWith(Account account)
         => this with { HeadQuarters = HeadQuarters.InitWith(account) };
@@ -177,7 +177,7 @@ public static partial class V2
     {
         public RegisterAgent InitWith(AccountAgent agent)
         {
-            var registration = this with { Agent = Agent.InitWith(agent), Faction = Faction.InitWith(agent.Accounts), Contract = Contract.InitWith(agent) };
+            var registration = this with { Agent = Agent.InitWith(agent), Faction = Faction.InitWith(agent.Account.Accounts), Contract = Contract.InitWith(agent) };
             foreach (ref var ship in registration.Ships.AsSpan())
                 ship = ship.InitWith(agent);
             return registration;
@@ -229,7 +229,7 @@ public static partial class V2
         => ship.DeliverAllCargoToContract(this);
 
         public Contract InitWith(AccountAgent agent)
-        => this with { Terms = Terms.InitWith(agent.Accounts), AccountAgent = agent };
+        => this with { Terms = Terms.InitWith(agent.Account.Accounts), AccountAgent = agent };
     }
 
     public record class AcceptContract(Contract Contract, Agent Agent)
@@ -279,7 +279,7 @@ public static partial class V2
         public AccountAgent GetAgent() => _accountAgent;
 
         public Ship InitWith(AccountAgent agent)
-        => this with { Nav = Nav.InitWith(agent.Accounts), AccountAgent = agent };
+        => this with { Nav = Nav.InitWith(agent.Account.Accounts), AccountAgent = agent };
 
         public Task<Responses.Result<ShipNav>> Dock()
         => _accountAgent.API.DockShip(Symbol);
@@ -438,7 +438,7 @@ public static partial class V2
     : IInitWith<CreateChart, AccountAgent>
     {
         public CreateChart InitWith(AccountAgent agent)
-        => this with { Chart = Chart.InitWith(agent.Accounts), Waypoint = Waypoint.InitWith(agent.Accounts), Transaction = Transaction.InitWith(agent.Accounts), Agent = Agent.InitWith(agent) };
+        => this with { Chart = Chart.InitWith(agent.Account.Accounts), Waypoint = Waypoint.InitWith(agent.Account.Accounts), Transaction = Transaction.InitWith(agent.Account.Accounts), Agent = Agent.InitWith(agent) };
     }
 
     public record class Chart(WaypointSymbol WaypointSymbol, FactionSymbol SubmittedBy, DateTimeOffset SubmittedOn)
