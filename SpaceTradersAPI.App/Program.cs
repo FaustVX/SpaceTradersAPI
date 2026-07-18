@@ -19,11 +19,17 @@ while(true)
         case ["info", .. var selection]:
             await ParseInfo(selection, ["info"]);
             break;
+        case ["register", .. var selection]:
+            await ParseRegister(selection, ["register"]);
+            break;
+        case ["negociate", .. var selection]:
+            await ParseNegociate(selection, ["negociate"]);
+            break;
         case ["quit"]:
             Environment.Exit(0);
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine("[sel[ect] | list | info | quit | --help]");
+            Console.WriteLine("[sel[ect] | list | info | register | negociate | quit | --help]");
             break;
     }
 }
@@ -271,8 +277,11 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
         case ["system", .. var system]:
             await ParseSystem(system, [..previousCommands, "system"]);
             break;
+        case ["agent"]:
+            Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetAgent());
+            break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [ship | server | way[point] | system | --help]");
+            Console.WriteLine($"{previousCommands.Concat()} [ship | server | way[point] | system | agent | --help]");
             break;
     }
 
@@ -322,6 +331,32 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
                 Console.WriteLine($"{previousCommands.Concat()} [<system> | --help]");
                 break;
         }
+    }
+}
+
+async Task ParseRegister(string[] selection, string[] previousCommands)
+{
+    switch (selection)
+    {
+        case ["agent", var name, var faction] when Enum.TryParse<V2.FactionSymbol>(faction, out var fac):
+            Console.WriteLine(await accounts.Selected.API.RegisterAgent(name, fac));
+            break;
+        case [] or ["--help"] or _:
+            Console.WriteLine($"{previousCommands.Concat()} agent <name> <faction>");
+            break;
+    }
+}
+
+async Task ParseNegociate(string[] selection, string[] previousCommands)
+{
+    switch (selection)
+    {
+        case ["contract"]:
+            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.NegociateContract());
+            break;
+        case [] or ["--help"] or _:
+            Console.WriteLine($"{previousCommands.Concat()} contract");
+            break;
     }
 }
 
