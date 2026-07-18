@@ -162,6 +162,10 @@ public record class AccountAgent(string Name, string Token) : IAccount
     [JsonIgnore]
     public Models.V2.Ship SelectedShip { get => field ??= Ships.Values.FirstOrDefault()!; set; }
     [JsonIgnore]
+    public Dictionary<string, Models.V2.Contract> Contracts { get; } = [];
+    [JsonIgnore]
+    public Models.V2.Contract? SelectedContract { get => field ??= Contracts.Values.FirstOrDefault(); set; }
+    [JsonIgnore]
     public Endpoints API => field ??= new(this);
 
     public class Endpoints(AccountAgent agent)
@@ -174,23 +178,24 @@ public record class AccountAgent(string Name, string Token) : IAccount
         => agent.Account.Accounts.SendAsyncEnumerable<Models.V2.AgentFaction>(HttpMethod.Get, "/my/factions?", agent.AgentToken);
 
         public async Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
+        => await agent.Account.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
+        .MapInitAsync(agent).MapvalueAsync(ship =>
         {
-            switch (await agent.Account.Accounts.SendAsyncData<Models.V2.Ship>(HttpMethod.Get, $"/my/ships/{shipSymbol}", agent.AgentToken)
-                .MapInitAsync(agent))
-            {
-                case Models.V2.Ship ship:
-                    agent.Ships[ship.Symbol] = ship;
-                    if (agent.SelectedShip.Symbol == ship.Symbol)
-                        agent.SelectedShip = ship;
-                    return ship;
-                case var result:
-                    return result;
-            }
-        }
+            agent.Ships[ship.Symbol] = ship;
+            if (agent.SelectedShip.Symbol == ship.Symbol)
+                agent.SelectedShip = ship;
+            return ship;
+        });
 
         public Task<Responses.Result<Models.V2.Contract>> NegociateContract(string shipSymbol)
         => agent.Account.Accounts.SendAsyncData<Responses.ContractWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/negotiate/contract", agent.AgentToken)
-        .MapvalueAsync(resp => resp.Contract).MapInitAsync(agent);
+        .MapvalueAsync(resp => resp.Contract).MapInitAsync(agent).MapvalueAsync(contract =>
+        {
+            agent.Contracts[contract.Id] = contract;
+            if (agent.SelectedContract is null || agent.SelectedContract.Id == contract.Id)
+                agent.SelectedContract = contract;
+            return contract;
+        });
 
         public Task<Responses.Result<Models.V2.ShipNav>> DockShip(string shipSymbol)
         => agent.Account.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken)
@@ -207,12 +212,7 @@ public record class AccountAgent(string Name, string Token) : IAccount
         public async Task<Responses.Result<IAsyncEnumerable<Models.V2.Ship>>> ListMyShips()
         {
             return await agent.Account.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships?", agent.AgentToken)
-                .MapInitAsync(agent) switch
-            {
-                Responses.Error err => err,
-                IAsyncEnumerable<Models.V2.Ship> ships => Enumerate(ships),
-                _ => throw new UnreachableException(),
-            };
+                .MapInitAsync(agent).MapvalueAsync(Enumerate);
 
             async IAsyncEnumerable<Models.V2.Ship> Enumerate(IAsyncEnumerable<Models.V2.Ship> ships)
             {
@@ -227,20 +227,51 @@ public record class AccountAgent(string Name, string Token) : IAccount
         }
 
         public Task<Responses.Result<IAsyncEnumerable<Models.V2.Contract>>> ListMyContracts()
-        => agent.Account.Accounts.SendAsyncEnumerable<Models.V2.Contract>(HttpMethod.Get, "/my/contracts?", agent.AgentToken)
-        .MapInitAsync(agent);
+        {
+            return agent.Account.Accounts.SendAsyncEnumerable<Models.V2.Contract>(HttpMethod.Get, "/my/contracts?", agent.AgentToken)
+                .MapInitAsync(agent).MapvalueAsync(Enumerate);
+
+            async IAsyncEnumerable<Models.V2.Contract> Enumerate(IAsyncEnumerable<Models.V2.Contract> contracts)
+            {
+                await foreach (var contract in contracts)
+                {
+                    agent.Contracts[contract.Id] = contract;
+                    if (agent.SelectedContract is null || agent.SelectedContract.Id == contract.Id)
+                        agent.SelectedContract = contract;
+                    yield return contract;
+                }
+            }
+        }
 
         public Task<Responses.Result<Models.V2.Contract>> GetContract(string contractId)
         => agent.Account.Accounts.SendAsyncData<Models.V2.Contract>(HttpMethod.Get, $"/my/contracts/{contractId}", agent.AgentToken)
-        .MapInitAsync(agent);
+        .MapInitAsync(agent).MapvalueAsync(contract =>
+        {
+            agent.Contracts[contract.Id] = contract;
+            if (agent.SelectedContract is null || agent.SelectedContract.Id == contract.Id)
+                agent.SelectedContract = contract;
+            return contract;
+        });
 
         public Task<Responses.Result<Models.V2.AcceptContract>> AcceptContract(string contractId)
         => agent.Account.Accounts.SendAsyncData<Models.V2.AcceptContract>(HttpMethod.Post, $"/my/contracts/{contractId}/accept", agent.AgentToken)
-        .MapInitAsync(agent);
+        .MapInitAsync(agent).MapvalueAsync(contract =>
+        {
+            agent.Contracts[contract.Contract.Id] = contract.Contract;
+            if (agent.SelectedContract is null || agent.SelectedContract.Id == contract.Contract.Id)
+                agent.SelectedContract = contract.Contract;
+            return contract;
+        });
 
         public Task<Responses.Result<Models.V2.AcceptContract>> FulfillContract(string contractId)
         => agent.Account.Accounts.SendAsyncData<Models.V2.AcceptContract>(HttpMethod.Post, $"/my/contracts/{contractId}/fulfull", agent.AgentToken)
-        .MapInitAsync(agent);
+        .MapInitAsync(agent).MapvalueAsync(contract =>
+        {
+            agent.Contracts[contract.Contract.Id] = contract.Contract;
+            if (agent.SelectedContract is null || agent.SelectedContract.Id == contract.Contract.Id)
+                agent.SelectedContract = contract.Contract;
+            return contract;
+        });
 
         public Task<Responses.Result<Models.V2.DeliverCargoToContract>> DeliverCargoToContract(string contractId, string shipSymbol, string tradeSymbol, int units)
         => agent.Account.Accounts.SendAsyncData<Models.V2.DeliverCargoToContract>(HttpMethod.Post, $"/my/contracts/{contractId}/deliver", agent.AgentToken, $$"""{"shipSymbol":"{{shipSymbol}}","tradeSymbol":"{{tradeSymbol}}","units":{{units}}}""")

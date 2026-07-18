@@ -7,35 +7,40 @@ using SpaceTradersAPI.Lib.Responses;
 var accounts = await ReadAccounts(ReadFile());
 
 while(!Console.IsInputRedirected || Console.In.Peek() is not -1)
-{
-    switch (Console.Prompt("SpaceTrader>").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    try
     {
-        case [("sel" or "select") and var sel, .. var selection]:
-            ParseSelect(selection, [sel]);
-            break;
-        case ["list", .. var selection]:
-            await ParseList(selection, ["list"]);
-            break;
-        case ["info", .. var selection]:
-            await ParseInfo(selection, ["info"]);
-            break;
-        case ["register", .. var selection]:
-            await ParseRegister(selection, ["register"]);
-            break;
-        case ["contract", .. var selection]:
-            await ParseContract(selection, ["contract"]);
-            break;
-        case ["ship", .. var selection]:
-            await ParseShip(selection, ["ship"]);
-            break;
-        case ["quit"]:
-            Environment.Exit(0);
-            break;
-        case [] or ["--help"] or _:
-            Console.WriteLine("[sel[ect] | list | info | register | contract | ship | quit | --help]");
-            break;
+        switch (Console.Prompt("SpaceTrader>").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            case [("sel" or "select") and var sel, .. var selection]:
+                ParseSelect(selection, [sel]);
+                break;
+            case ["list", .. var selection]:
+                await ParseList(selection, ["list"]);
+                break;
+            case ["info", .. var selection]:
+                await ParseInfo(selection, ["info"]);
+                break;
+            case ["register", .. var selection]:
+                await ParseRegister(selection, ["register"]);
+                break;
+            case ["contract", .. var selection]:
+                await ParseContract(selection, ["contract"]);
+                break;
+            case ["ship", .. var selection]:
+                await ParseShip(selection, ["ship"]);
+                break;
+            case ["quit"]:
+                Environment.Exit(0);
+                break;
+            case [] or ["--help"] or _:
+                Console.WriteLine("[sel[ect] | list | info | register | contract | ship | quit | --help]");
+                break;
+        }
     }
-}
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.Message);
+    }
 
 void ParseSelect(string[] selection, string[] previousCommands)
 {
@@ -160,7 +165,7 @@ async Task ParseList(string[] selection, string[] previousCommands)
             await ParseWaypointsInSystem(waypoint, [..previousCommands, wp]);
             break;
         case ["contracts"]:
-            await accounts.Selected.SelectedAgent.API.ListMyContracts().Execute(Console.WriteLine, Console.WriteLine);
+            await accounts.Selected.SelectedAgent.API.ListMyContracts().Execute(c => Console.WriteLine($"Agent: {(c.Id == accounts.Selected.SelectedAgent.SelectedContract?.Id ? '*' : ' ')}{c}"), Console.WriteLine);
             break;
         case [] or ["--help"] or _:
             Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | factions | systems | way[point] | contracts | --help]");
@@ -173,7 +178,7 @@ async Task ParseList(string[] selection, string[] previousCommands)
         {
             case []:
                 foreach (var a in accounts.Accounts)
-                    Console.WriteLine($"Account: {(a == accounts.Selected ? '*' : ' ')}{a.Name}");
+                    Console.WriteLine($"Account: {(a.Name == accounts.Selected?.Name ? '*' : ' ')}{a.Name}");
                 break;
             case ["--help"] or _:
                 Console.WriteLine($"{previousCommands.Concat()} [--help]");
@@ -190,7 +195,7 @@ async Task ParseList(string[] selection, string[] previousCommands)
                 break;
             case []:
                 foreach (var a in accounts.Selected.Agents)
-                    Console.WriteLine($"Agent: {(a == accounts.Selected.SelectedAgent ? '*' : ' ')}{a.Name}");
+                    Console.WriteLine($"Agent: {(a.Name == accounts.Selected.SelectedAgent?.Name ? '*' : ' ')}{a.Name}");
                 break;
             case ["--help"] or _:
                 Console.WriteLine($"{previousCommands.Concat()} [public | --help]");
@@ -204,7 +209,7 @@ async Task ParseList(string[] selection, string[] previousCommands)
         {
             case []:
                 foreach (var a in accounts.Selected.SelectedAgent.Ships)
-                    Console.WriteLine($"Ship: {(a.Value == accounts.Selected.SelectedAgent.SelectedShip ? '*' : ' ')}{a.Key}");
+                    Console.WriteLine($"Ship: {(a.Key == accounts.Selected.SelectedAgent.SelectedShip?.Symbol ? '*' : ' ')}{a.Key}");
                 break;
             case ["--help"] or _:
                 Console.WriteLine($"{previousCommands.Concat()} [--help]");
@@ -387,8 +392,11 @@ async Task ParseContract(string[] selection, string[] previousCommands)
         case ["info", .. var accept]:
             await ParseAccept(accept, [..previousCommands, "info"], accounts.Selected.SelectedAgent.API.GetContract);
             break;
+        case ["deliver", .. var accept]:
+            await ParseDeliver(accept, [..previousCommands, "deliver"]);
+            break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [negociate | accept | fulfill | info | --help]");
+            Console.WriteLine($"{previousCommands.Concat()} [negociate | accept | fulfill | info | deliver | --help]");
             break;
     }
 
@@ -401,8 +409,30 @@ async Task ParseContract(string[] selection, string[] previousCommands)
             case [var id]:
                 Console.WriteLine(await func(id));
                 break;
+            case [] when accounts.Selected.SelectedAgent.SelectedContract is { Id: var id }:
+                Console.WriteLine(await func(id));
+                break;
             case [] or _: HELP:
                 Console.WriteLine($"{previousCommands.Concat()} [<contractId> | --help]");
+                break;
+        }
+    }
+
+    async Task ParseDeliver(string[] selection, string[] previousCommands)
+    {
+        switch (selection)
+        {
+            case ["--help"]:
+                goto HELP;
+            case [var id, var trade, var units] when Enum.TryParse<V2.TradeSymbol>(trade, out var tr) && int.TryParse(units, out var un):
+                var contract = accounts.Selected.SelectedAgent.SelectedContract!;
+                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.DeliverCargoToContract(contract, tr, un));
+                break;
+            case [var trade, var units] when accounts.Selected.SelectedAgent.SelectedContract is {} c && Enum.TryParse<V2.TradeSymbol>(trade, out var tr) && int.TryParse(units, out var un):
+                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.DeliverCargoToContract(c, tr, un));
+                break;
+            case [] or _: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<contractId> <trade> <units> | --help]");
                 break;
         }
     }
@@ -445,6 +475,7 @@ static async Task<Account> ReadAccounts(FileInfo accountsFile)
         {
             agent.Account = account;
             await foreach (var _ in agent.API.ListMyShips());
+            await foreach (var _ in agent.API.ListMyContracts());
         }
     }
 
