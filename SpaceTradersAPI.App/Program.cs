@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using SpaceTradersAPI.Lib;
 using SpaceTradersAPI.Lib.Models;
 using SpaceTradersAPI.Lib.Responses;
@@ -140,8 +141,19 @@ async Task ParseList(string[] selection, string[] previousCommands)
         case ["ship", .. var ship]:
             ParseShip(ship, [..previousCommands, "ship"]);
             break;
+        case ["factions"]:
+            await foreach (var f in accounts.API.ListFactions())
+                Console.WriteLine(f);
+            break;
+        case ["systems"]:
+            await foreach (var s in accounts.API.ListSystems())
+                Console.WriteLine(s);
+            break;
+        case [("way" or "waypoint") and var wp, .. var waypoint]:
+            await ParseWaypointsInSystem(waypoint, [..previousCommands, wp]);
+            break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | --help]");
+            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | factions | systems | way[point] | --help]");
             break;
     }
 
@@ -188,6 +200,48 @@ async Task ParseList(string[] selection, string[] previousCommands)
             case ["--help"] or _:
                 Console.WriteLine($"{previousCommands.Concat()} [--help]");
                 break;
+        }
+    }
+
+    async Task ParseWaypointsInSystem(string[] waypoint, string[] previousCommands)
+    {
+        switch (waypoint)
+        {
+            case ["--help"]:
+                goto HELP;
+            case [var system] when V2.SystemSymbol.TryParse(system, default, out var sys):
+                await foreach (var s in accounts.API.ListWaypointInSystem(sys.InitWith(accounts)))
+                    Console.WriteLine(s);
+                break;
+            case [var system, var type] when V2.SystemSymbol.TryParse(system, default, out var sys) && Enum.TryParse<V2.WaypointType>(type, out var ty):
+                await foreach (var s in accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty))
+                    Console.WriteLine(s);
+                break;
+            case [var system, var type, .. var traits] when V2.SystemSymbol.TryParse(system, default, out var sys) && Enum.TryParse<V2.WaypointType>(type, out var ty) && TryParseTraits(traits, out var tr):
+                await foreach (var s in accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty, tr))
+                    Console.WriteLine(s);
+                break;
+            case [var system, .. var traits] when V2.SystemSymbol.TryParse(system, default, out var sys) && TryParseTraits(traits, out var tr):
+                await foreach (var s in accounts.API.ListWaypointInSystem(sys.InitWith(accounts), traits: tr))
+                    Console.WriteLine(s);
+                break;
+            case [] or ["--help"] or _: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<system> [<type>] [<trailt...>]| --help]");
+                break;
+        }
+
+        static bool TryParseTraits(string[] input, [NotNullWhen(true)]out V2.WaypointTraitSymbol[]? traits)
+        {
+            try
+            {
+                traits = [.. input.Select(Enum.Parse<V2.WaypointTraitSymbol>)];
+                return true;
+            }
+            catch
+            {
+                traits = default;
+                return false;
+            }
         }
     }
 }
