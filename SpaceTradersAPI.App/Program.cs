@@ -145,8 +145,7 @@ async Task ParseList(string[] selection, string[] previousCommands)
             await ParseFactions(factions, [..previousCommands, "factions"]);
             break;
         case ["systems"]:
-            await foreach (var s in accounts.API.ListSystems())
-                Console.WriteLine(s);
+            await accounts.API.ListSystems().Execute(Console.WriteLine, Console.WriteLine);
             break;
         case [("way" or "waypoint") and var wp, .. var waypoint]:
             await ParseWaypointsInSystem(waypoint, [..previousCommands, wp]);
@@ -175,8 +174,7 @@ async Task ParseList(string[] selection, string[] previousCommands)
         switch (agent)
         {
             case ["public"]:
-                await foreach(var a in accounts.API.ListPublicAgents())
-                    Console.WriteLine(a);
+                await accounts.API.ListPublicAgents().Execute(Console.WriteLine, Console.WriteLine);
                 break;
             case []:
                 foreach (var a in accounts.Selected.Agents)
@@ -207,12 +205,10 @@ async Task ParseList(string[] selection, string[] previousCommands)
         switch (factions)
         {
             case ["public"]:
-                await foreach(var a in accounts.API.ListFactions())
-                    Console.WriteLine(a);
+                await accounts.API.ListFactions().Execute(Console.WriteLine, Console.WriteLine);
                 break;
             case []:
-                await foreach (var f in accounts.Selected.SelectedAgent.API.GetMyFactions())
-                    Console.WriteLine(f);
+                await accounts.Selected.SelectedAgent.API.GetMyFactions().Execute(Console.WriteLine, Console.WriteLine);
                 break;
             case ["--help"] or _:
                 Console.WriteLine($"{previousCommands.Concat()} [public | --help]");
@@ -227,20 +223,16 @@ async Task ParseList(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case [var system] when V2.SystemSymbol.TryParse(system, default, out var sys):
-                await foreach (var s in accounts.API.ListWaypointInSystem(sys.InitWith(accounts)))
-                    Console.WriteLine(s);
+                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts)).Execute(Console.WriteLine, Console.WriteLine);
                 break;
             case [var system, var type] when V2.SystemSymbol.TryParse(system, default, out var sys) && Enum.TryParse<V2.WaypointType>(type, out var ty):
-                await foreach (var s in accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty))
-                    Console.WriteLine(s);
+                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty).Execute(Console.WriteLine, Console.WriteLine);
                 break;
             case [var system, var type, .. var traits] when V2.SystemSymbol.TryParse(system, default, out var sys) && Enum.TryParse<V2.WaypointType>(type, out var ty) && TryParseTraits(traits, out var tr):
-                await foreach (var s in accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty, tr))
-                    Console.WriteLine(s);
+                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty, tr).Execute(Console.WriteLine, Console.WriteLine);
                 break;
             case [var system, .. var traits] when V2.SystemSymbol.TryParse(system, default, out var sys) && TryParseTraits(traits, out var tr):
-                await foreach (var s in accounts.API.ListWaypointInSystem(sys.InitWith(accounts), traits: tr))
-                    Console.WriteLine(s);
+                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), traits: tr).Execute(Console.WriteLine, Console.WriteLine);
                 break;
             case [] or ["--help"] or _: HELP:
                 Console.WriteLine($"{previousCommands.Concat()} [<system> [<type>] [<trailt...>]| --help]");

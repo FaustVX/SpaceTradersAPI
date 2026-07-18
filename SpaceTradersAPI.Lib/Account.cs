@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -61,37 +62,46 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts) : IAccount
     public Task<Responses.Result<T>> SendAsyncData<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
     => SendAsyncRaw<Responses.Datas<T>>(method, endpoint, token, content).MapvalueAsync(data => data.Data);
 
-    public async IAsyncEnumerable<T> SendAsyncEnumerable<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
+    public async Task<Responses.Result<IAsyncEnumerable<T>>> SendAsyncEnumerable<T>(HttpMethod method, string endpoint, AuthenticationHeaderValue? token = null, string? content = null)
     {
-        endpoint += "&limit=20";
-        for(var page = 1; true; page++)
+        return await SendAsyncRaw<Responses.DatasWithMeta<T[]>>(method, endpoint + $"&limit=1", token, content) switch
         {
-            var (data, _) = await SendAsyncRaw<Responses.DatasWithMeta<T[]>>(method, endpoint + $"&page={page}", token, content).ValueOrThrowAsync();
-            foreach (var item in data)
-                yield return item;
-            if (data.Length < 20)
-                yield break;
+            Responses.Error err => err,
+            _ => Enumerate(),
+        };
+
+        async IAsyncEnumerable<T> Enumerate()
+        {
+            endpoint += "&limit=20";
+            for(var page = 1; true; page++)
+            {
+                var (data, _) = await SendAsyncRaw<Responses.DatasWithMeta<T[]>>(method, endpoint + $"&page={page}", token, content).ValueOrThrowAsync();
+                foreach (var item in data)
+                    yield return item;
+                if (data.Length < 20)
+                    yield break;
+            }
         }
     }
 
     public class Endpoints(Account account)
     {
-        public IAsyncEnumerable<Models.V2.Agent> ListPublicAgents()
+        public Task<Responses.Result<IAsyncEnumerable<Models.V2.Agent>>> ListPublicAgents()
         => account.SendAsyncEnumerable<Models.V2.Agent>(HttpMethod.Get, "/agents?")
         .MapInitAsync(account);
 
         public Task<Responses.Result<Models.V2.ServerStatus>> GetServerStatus()
         => account.SendAsyncRaw<Models.V2.ServerStatus>(HttpMethod.Get, "/");
 
-        public IAsyncEnumerable<Models.V2.Faction> ListFactions()
+        public Task<Responses.Result<IAsyncEnumerable<Models.V2.Faction>>> ListFactions()
         => account.SendAsyncEnumerable<Models.V2.Faction>(HttpMethod.Get, "/factions?")
         .MapInitAsync(account);
 
-        public IAsyncEnumerable<Models.V2.Waypoint> ListWaypointInSystem(string systemSymbol, Models.V2.WaypointType? type = null, params Models.V2.WaypointTraitSymbol[] traits)
+        public Task<Responses.Result<IAsyncEnumerable<Models.V2.Waypoint>>> ListWaypointInSystem(string systemSymbol, Models.V2.WaypointType? type = null, params Models.V2.WaypointTraitSymbol[] traits)
         => account.SendAsyncEnumerable<Models.V2.Waypoint>(HttpMethod.Get, $"/systems/{systemSymbol}/waypoints?{(type is Models.V2.WaypointType t ? $"type={t.ToUpperCase()}" : "")}{string.Concat(traits.Select(t => $"&traits={t.ToUpperCase()}"))}")
         .MapInitAsync(account);
 
-        public IAsyncEnumerable<Models.V2.Waypoint> ListWaypointInSystem(Models.V2.SystemSymbol systemSymbol, Models.V2.WaypointType? type = null, params Models.V2.WaypointTraitSymbol[] traits)
+        public Task<Responses.Result<IAsyncEnumerable<Models.V2.Waypoint>>> ListWaypointInSystem(Models.V2.SystemSymbol systemSymbol, Models.V2.WaypointType? type = null, params Models.V2.WaypointTraitSymbol[] traits)
         => ListWaypointInSystem(systemSymbol.ToString(), type, traits);
 
         public Task<Responses.Result<Models.V2.Waypoint>> GetWaypoint(string systemSymbol, string waypointSymbol)
@@ -101,7 +111,7 @@ public record class Account(Uri BaseAddress, AccountItem[] Accounts) : IAccount
         public Task<Responses.Result<Models.V2.Waypoint>> GetWaypoint(Models.V2.WaypointSymbol waypointSymbol)
         => GetWaypoint(waypointSymbol.System.ToString(), waypointSymbol.ToString());
 
-        public IAsyncEnumerable<Models.V2.System> ListSystems()
+        public Task<Responses.Result<IAsyncEnumerable<Models.V2.System>>> ListSystems()
         => account.SendAsyncEnumerable<Models.V2.System>(HttpMethod.Get, "/systems?")
         .MapInitAsync(account);
 
@@ -160,7 +170,7 @@ public record class AccountAgent(string Name, string Token) : IAccount
         => agent.Account.Accounts.SendAsyncData<Models.V2.Agent>(HttpMethod.Get, "/my/agent", agent.AgentToken)
         .MapInitAsync(agent);
 
-        public IAsyncEnumerable<Models.V2.AgentFaction> GetMyFactions()
+        public Task<Responses.Result<IAsyncEnumerable<Models.V2.AgentFaction>>> GetMyFactions()
         => agent.Account.Accounts.SendAsyncEnumerable<Models.V2.AgentFaction>(HttpMethod.Get, "/my/factions?", agent.AgentToken);
 
         public async Task<Responses.Result<Models.V2.Ship>> GetShip(string shipSymbol)
@@ -194,19 +204,29 @@ public record class AccountAgent(string Name, string Token) : IAccount
         => agent.Account.Accounts.SendAsyncData<Models.V2.CreateChart>(HttpMethod.Post, $"/my/ships/{shipSymbol}/chart", agent.AgentToken)
         .MapInitAsync(agent);
 
-        public async IAsyncEnumerable<Models.V2.Ship> ListMyShips()
+        public async Task<Responses.Result<IAsyncEnumerable<Models.V2.Ship>>> ListMyShips()
         {
-            await foreach (var ship in agent.Account.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships?", agent.AgentToken)
-                .MapInitAsync(agent))
+            return await agent.Account.Accounts.SendAsyncEnumerable<Models.V2.Ship>(HttpMethod.Get, "/my/ships?", agent.AgentToken)
+                .MapInitAsync(agent) switch
             {
-                agent.Ships[ship.Symbol] = ship;
-                if (agent.SelectedShip.Symbol == ship.Symbol)
-                    agent.SelectedShip = ship;
-                yield return ship;
+                Responses.Error err => err,
+                IAsyncEnumerable<Models.V2.Ship> ships => Enumerate(ships),
+                _ => throw new UnreachableException(),
+            };
+
+            async IAsyncEnumerable<Models.V2.Ship> Enumerate(IAsyncEnumerable<Models.V2.Ship> ships)
+            {
+                await foreach (var ship in ships)
+                {
+                    agent.Ships[ship.Symbol] = ship;
+                    if (agent.SelectedShip.Symbol == ship.Symbol)
+                        agent.SelectedShip = ship;
+                    yield return ship;
+                }
             }
         }
 
-        public IAsyncEnumerable<Models.V2.Contract> ListMyContracts()
+        public Task<Responses.Result<IAsyncEnumerable<Models.V2.Contract>>> ListMyContracts()
         => agent.Account.Accounts.SendAsyncEnumerable<Models.V2.Contract>(HttpMethod.Get, "/my/contracts?", agent.AgentToken)
         .MapInitAsync(agent);
 

@@ -192,10 +192,10 @@ public static partial class V2
         public Agent InitWith(Account account)
         => this with { HeadQuarters = HeadQuarters.InitWith(account) };
 
-        public IAsyncEnumerable<Ship>? ListMyShips()
+        public Task<Responses.Result<IAsyncEnumerable<Ship>>>? ListMyShips()
         => _accountAgent?.API.ListMyShips();
 
-        public IAsyncEnumerable<Contract>? ListMyContracts()
+        public Task<Responses.Result<IAsyncEnumerable<Contract>>>? ListMyContracts()
         => _accountAgent?.API.ListMyContracts();
 
         public Task<Responses.Result<Agent>>? UpdateFromServer()

@@ -34,16 +34,50 @@ public static class Ext
         }
     }
 
-    extension<T, TAccount>(IAsyncEnumerable<T> values)
+    extension<T, TAccount>(Task<Result<IAsyncEnumerable<T>>> values)
     where T : V2.IInitWith<T, TAccount>
     where TAccount : IAccount
     {
-        public async IAsyncEnumerable<T> MapInitAsync(TAccount account)
+        public Task<Result<IAsyncEnumerable<T>>> MapInitAsync(TAccount account)
         {
-            await foreach (var item in values)
-                yield return item.InitWith(account);
+            return values.MapvalueAsync(Map);
+
+            async IAsyncEnumerable<T> Map(IAsyncEnumerable<T> e)
+            {
+                await foreach (var item in e)
+                    yield return item.InitWith(account);
+            }
         }
     }
+
+    extension<T>(Task<Result<IAsyncEnumerable<T>>> values)
+    {
+        public async Task<Result<IAsyncEnumerable<TResult>>> MapValuesAsync<TResult>(Func<T, TResult> mapper)
+        => await values switch
+        {
+            Error err => err,
+            IAsyncEnumerable<T> e => e.MapValuesAsync(mapper),
+            _ => throw new UnreachableException(),
+        };
+
+        public async Task Execute(Action<T> onValue, Action<Error> onError)
+        {
+            switch (await values)
+            {
+                case IAsyncEnumerable<T> v:
+                    await foreach (var item in v)
+                        onValue(item);
+                    break;
+                case Error err:
+                    onError?.Invoke(err);
+                    break;
+            }
+        }
+
+        public IAsyncEnumerator<T> GetAsyncEnumerator()
+        => values.ValueOrThrowAsync().Result.GetAsyncEnumerator();
+    }
+
     extension<T, TAccount>(Task<Result<T>> task)
     where T : V2.IInitWith<T, TAccount>
     where TAccount : IAccount
