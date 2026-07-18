@@ -189,8 +189,8 @@ public record class AccountAgent(string Name, string Token) : IAccount
         }
 
         public Task<Responses.Result<Models.V2.Contract>> NegociateContract(string shipSymbol)
-        => agent.Account.Accounts.SendAsyncData<Models.V2.Contract>(HttpMethod.Post, $"/my/ships/{shipSymbol}/negotiate/contract", agent.AgentToken)
-        .MapInitAsync(agent);
+        => agent.Account.Accounts.SendAsyncData<Responses.ContractWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/negotiate/contract", agent.AgentToken)
+        .MapvalueAsync(resp => resp.Contract).MapInitAsync(agent);
 
         public Task<Responses.Result<Models.V2.ShipNav>> DockShip(string shipSymbol)
         => agent.Account.Accounts.SendAsyncData<Responses.ShipNavWraper>(HttpMethod.Post, $"/my/ships/{shipSymbol}/dock", agent.AgentToken)

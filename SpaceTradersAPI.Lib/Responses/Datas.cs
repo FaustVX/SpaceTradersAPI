@@ -11,6 +11,8 @@ public record class Meta(int Total, int Page, int Limit);
 
 public record class ShipNavWraper(Models.V2.ShipNav Nav);
 
+public record class ContractWraper(Models.V2.Contract Contract);
+
 public record class ErrorResponse(HTTPError Error);
 
 public record class Error(string Message)
