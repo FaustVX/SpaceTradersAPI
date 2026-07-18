@@ -156,8 +156,11 @@ async Task ParseList(string[] selection, string[] previousCommands)
         case [("way" or "waypoint") and var wp, .. var waypoint]:
             await ParseWaypointsInSystem(waypoint, [..previousCommands, wp]);
             break;
+        case ["contracts"]:
+            await accounts.Selected.SelectedAgent.API.ListMyContracts().Execute(Console.WriteLine, Console.WriteLine);
+            break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | factions | systems | way[point] | --help]");
+            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | factions | systems | way[point] | contracts | --help]");
             break;
     }
 
@@ -280,8 +283,11 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
         case ["agent"]:
             Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetAgent());
             break;
+        case ["contract", .. var contract]:
+        await ParseContract(contract, [..previousCommands, "contract"]);
+            break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [ship | server | way[point] | system | agent | --help]");
+            Console.WriteLine($"{previousCommands.Concat()} [ship | server | way[point] | system | agent | contract | --help]");
             break;
     }
 
@@ -329,6 +335,21 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
                 break;
             case [] or _: HELP:
                 Console.WriteLine($"{previousCommands.Concat()} [<system> | --help]");
+                break;
+        }
+    }
+
+    async Task ParseContract(string[] selection, string[] previousCommands)
+    {
+        switch (selection)
+        {
+            case ["--help"]:
+                goto HELP;
+            case [var id]:
+                Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetContract(id));
+                break;
+            case [] or _: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<contractId> | --help]");
                 break;
         }
     }
