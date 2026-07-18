@@ -22,8 +22,8 @@ while(true)
         case ["register", .. var selection]:
             await ParseRegister(selection, ["register"]);
             break;
-        case ["negociate", .. var selection]:
-            await ParseNegociate(selection, ["negociate"]);
+        case ["contract", .. var selection]:
+            await ParseContract(selection, ["contract"]);
             break;
         case ["ship", .. var selection]:
             await ParseShip(selection, ["ship"]);
@@ -32,7 +32,7 @@ while(true)
             Environment.Exit(0);
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine("[sel[ect] | list | info | register | negociate | ship | quit | --help]");
+            Console.WriteLine("[sel[ect] | list | info | register | contract | ship | quit | --help]");
             break;
     }
 }
@@ -371,16 +371,40 @@ async Task ParseRegister(string[] selection, string[] previousCommands)
     }
 }
 
-async Task ParseNegociate(string[] selection, string[] previousCommands)
+async Task ParseContract(string[] selection, string[] previousCommands)
 {
     switch (selection)
     {
-        case ["contract"]:
+        case ["negociate"]:
             Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.NegociateContract());
             break;
-        case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [contract | --help]");
+        case ["accept", .. var accept]:
+            await ParseAccept(accept, [..previousCommands, "accept"], accounts.Selected.SelectedAgent.API.AcceptContract);
             break;
+        case ["fulfill", .. var accept]:
+            await ParseAccept(accept, [..previousCommands, "fulfill"], accounts.Selected.SelectedAgent.API.FulfillContract);
+            break;
+        case ["info", .. var accept]:
+            await ParseAccept(accept, [..previousCommands, "info"], accounts.Selected.SelectedAgent.API.GetContract);
+            break;
+        case [] or ["--help"] or _:
+            Console.WriteLine($"{previousCommands.Concat()} [negociate | accept | fulfill | info | --help]");
+            break;
+    }
+
+    async Task ParseAccept<T>(string[] selection, string[] previousCommands, Func<string, Task<Result<T>>> func)
+    {
+        switch (selection)
+        {
+            case ["--help"]:
+                goto HELP;
+            case [var id]:
+                Console.WriteLine(await func(id));
+                break;
+            case [] or _: HELP:
+                Console.WriteLine($"{previousCommands.Concat()} [<contractId> | --help]");
+                break;
+        }
     }
 }
 
