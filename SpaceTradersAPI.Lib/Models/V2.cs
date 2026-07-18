@@ -8,7 +8,7 @@ namespace SpaceTradersAPI.Lib.Models;
 public static partial class V2
 {
     [JsonConverter(typeof(JsonConverter))]
-    public readonly struct WaypointSymbol : IEquatable<WaypointSymbol>
+    public readonly struct WaypointSymbol : IEquatable<WaypointSymbol>, IParsable<WaypointSymbol>
     {
         private class JsonConverter : JsonConverter<WaypointSymbol>
         {
@@ -61,15 +61,28 @@ public static partial class V2
         => !lhs.Equals(rhs);
 
         public override readonly string ToString()
-        => this switch
+        => $"{System}-{Waypoint}";
+
+        public static WaypointSymbol Parse(string s, IFormatProvider? provider)
+        => new(s);
+
+        public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out WaypointSymbol result)
         {
-            { System: SystemSymbol system, Waypoint: string waypoint } => $"{system}-{waypoint}",
-            { System: SystemSymbol system } => system.ToString(),
-        };
+            try
+            {
+                result = new(s!);
+                return true;
+            }
+            catch
+            {
+                result = default;
+                return false;
+            }
+        }
     }
 
     [JsonConverter(typeof(JsonConverter))]
-    public readonly struct SystemSymbol : IEquatable<SystemSymbol>
+    public readonly struct SystemSymbol : IEquatable<SystemSymbol>, IParsable<SystemSymbol>
     {
         private class JsonConverter : JsonConverter<SystemSymbol>
         {
@@ -128,6 +141,23 @@ public static partial class V2
 
         public override readonly string ToString()
         => $"{Sector}-{System}";
+
+        public static SystemSymbol Parse(string s, IFormatProvider? provider)
+        => new(s);
+
+        public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out SystemSymbol result)
+        {
+            try
+            {
+                result = new(s!);
+                return true;
+            }
+            catch
+            {
+                result = default;
+                return false;
+            }
+        }
     }
 
     public interface IPosition
