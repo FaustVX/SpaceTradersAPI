@@ -170,6 +170,8 @@ public record class AccountAgent(string Name, string Token) : IAccount
             {
                 case Models.V2.Ship ship:
                     agent.Ships[ship.Symbol] = ship;
+                    if (agent.SelectedShip.Symbol == ship.Symbol)
+                        agent.SelectedShip = ship;
                     return ship;
                 case var result:
                     return result;
@@ -198,6 +200,8 @@ public record class AccountAgent(string Name, string Token) : IAccount
                 .MapInitAsync(agent))
             {
                 agent.Ships[ship.Symbol] = ship;
+                if (agent.SelectedShip.Symbol == ship.Symbol)
+                    agent.SelectedShip = ship;
                 yield return ship;
             }
         }
