@@ -290,11 +290,11 @@ public record class AccountAgent(string Name, string Token) : IAccount
         .MapInitAsync(agent.Account.Accounts);
 
         public Task<Responses.Result<Models.V2.RefuelShip>> RefuelShip(string shipSymbol, int? units = null, bool? fromCargo = null)
-        => agent.Account.Accounts.SendAsyncData<Models.V2.RefuelShip>(HttpMethod.Patch, $"/my/ships/{shipSymbol}/refuel", agent.AgentToken, (units, fromCargo) switch
+        => agent.Account.Accounts.SendAsyncData<Models.V2.RefuelShip>(HttpMethod.Post, $"/my/ships/{shipSymbol}/refuel", agent.AgentToken, (units, fromCargo) switch
         {
             (null, null) => "{}",
-            (int u, bool c) => $$"""{"units":"{{u}}","fromCargo":"{{(c ? "true" : "false")}}"}""",
-            (int u, null) => $$"""{"units":"{{u}}"}""",
+            (int u, bool c) => $$"""{"units":{{u}},"fromCargo":"{{(c ? "true" : "false")}}"}""",
+            (int u, null) => $$"""{"units":{{u}}}""",
             (null, bool c) => $$"""{"fromCargo":"{{(c ? "true" : "false")}}"}""",
         })
         .MapInitAsync(agent);
