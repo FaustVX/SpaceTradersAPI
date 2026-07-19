@@ -442,6 +442,8 @@ public static partial class V2
     {
         public ShipCargoItem? Get(ShipCargoItem item)
         => Inventory.FirstOrDefault(i => i.Symbol == item.Symbol && i.Units >= item.Units);
+        public ShipCargoItem? Get(TradeSymbol symbol, int units = 0)
+        => Inventory.FirstOrDefault(i => i.Symbol == symbol && i.Units >= units);
     }
 
     public record class ShipCargoItem(TradeSymbol Symbol, string Name, string Description, int Units)

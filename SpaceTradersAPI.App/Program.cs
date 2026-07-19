@@ -457,12 +457,15 @@ async Task ParseShip(string[] selection, string[] previousCommands)
         case [("nav" or "navigate") and var navigate, .. var nav]:
             await ParseNavigate(nav, [..previousCommands, navigate]);
             break;
+        case ["refuel", .. var nav]:
+            await ParseRefuel(nav, [..previousCommands, "refuel"]);
+            break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [dock | orbit | chart | info | nav[igate] | --help]");
+            Console.WriteLine($"{previousCommands.Concat()} [dock | orbit | chart | info | nav[igate] | refuel | --help]");
             break;
     }
 
-    async Task ParseNavigate(string[] selection, string[] previousCommands)
+    async Task ParseNavigate(string[] selection, string[] previousCommands) 
     {
         switch (selection)
         {
@@ -476,6 +479,36 @@ async Task ParseShip(string[] selection, string[] previousCommands)
                 break;
         case [] or _: HELP:
             Console.WriteLine($"{previousCommands.Concat()} [<waypoint> | <localWaypoint> | --help]");
+            break;
+        }
+    }
+
+    async Task ParseRefuel(string[] selection, string[] previousCommands) 
+    {
+        switch (selection)
+        {
+            case ["--help"]:
+                goto HELP;
+            case []:
+                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Refuel());
+                break;
+            case ["fromCargo"]:
+                if (accounts.Selected.SelectedAgent.SelectedShip.Cargo.Get(V2.TradeSymbol.Fuel) is {} item0)
+                    Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Refuel(item0));
+                else
+                    Console.WriteLine("Cargo doesn't contains enough Fuel");
+                break;
+            case [var units] when int.TryParse(units, out var un):
+                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Refuel(un));
+                break;
+            case [var units, "fromCargo"] when int.TryParse(units, out var un):
+                if (accounts.Selected.SelectedAgent.SelectedShip.Cargo.Get(V2.TradeSymbol.Fuel, un) is {} item1)
+                    Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Refuel(item1));
+                else
+                    Console.WriteLine("Cargo doesn't contains enough Fuel");
+                break;
+        case [] or _: HELP:
+            Console.WriteLine($"{previousCommands.Concat()} [[<units>] [fromCargo] | --help]");
             break;
         }
     }
