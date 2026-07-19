@@ -45,6 +45,9 @@ public static partial class V2
             }
         }
 
+        public WaypointSymbol(SystemSymbol system, string local)
+        => (System, Waypoint) = (system, local);
+
         public override int GetHashCode()
         => HashCode.Combine(System, Waypoint);
 

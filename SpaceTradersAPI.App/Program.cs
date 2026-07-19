@@ -454,9 +454,30 @@ async Task ParseShip(string[] selection, string[] previousCommands)
         case ["info"]:
             Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.UpdateFromServer());
             break;
-        case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [dock | orbit | chart | info | --help]");
+        case [("nav" or "navigate") and var navigate, .. var nav]:
+            await ParseNavigate(nav, [..previousCommands, navigate]);
             break;
+        case [] or ["--help"] or _:
+            Console.WriteLine($"{previousCommands.Concat()} [dock | orbit | chart | info | nav[igate] | --help]");
+            break;
+    }
+
+    async Task ParseNavigate(string[] selection, string[] previousCommands)
+    {
+        switch (selection)
+        {
+            case ["--help"]:
+                goto HELP;
+            case [var waypoint] when V2.WaypointSymbol.TryParse(waypoint, default, out var wp):
+                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Navigate(wp));
+                break;
+            case [var local]:
+                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Navigate(accounts.Selected.SelectedAgent.SelectedShip.Nav.WaypointSymbol.InitWith(accounts) with { Waypoint = local }));
+                break;
+        case [] or _: HELP:
+            Console.WriteLine($"{previousCommands.Concat()} [<waypoint> | <localWaypoint> | --help]");
+            break;
+        }
     }
 }
 
