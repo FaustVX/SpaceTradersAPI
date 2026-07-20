@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using SpaceTradersAPI.Lib;
 using SpaceTradersAPI.Lib.Models;
 using SpaceTradersAPI.Lib.Responses;
@@ -559,6 +560,8 @@ static FileInfo ReadFile()
 
 static class Ext
 {
+    private static readonly JsonSerializerOptions _jsonSerializerOptions = new() { Converters = { new JsonStringEnumConverter() } };
+
     extension(string[] strings)
     {
         public string Concat()
@@ -597,7 +600,7 @@ static class Ext
                     Console.WriteValue(s);
                     break;
                 default:
-                    AnsiConsole.WriteLine(new JsonText(JsonSerializer.Serialize(value)) { Indentation = "  " });
+                    AnsiConsole.WriteLine(new JsonText(JsonSerializer.Serialize(value, _jsonSerializerOptions)) { Indentation = "  " });
                     break;
             };
         }
@@ -618,7 +621,7 @@ static class Ext
                     Console.WriteError(s);
                     break;
                 default:
-                    AnsiConsole.WriteLine(new JsonText(value.GetType() == typeof(T) ? JsonSerializer.Serialize(value) : JsonSerializer.Serialize(value, value.GetType())) { MemberStyle = Color.Orange1, Indentation = "  " });
+                    AnsiConsole.WriteLine(new JsonText(value.GetType() == typeof(T) ? JsonSerializer.Serialize(value, _jsonSerializerOptions) : JsonSerializer.Serialize(value, value.GetType(), _jsonSerializerOptions)) { MemberStyle = Color.Orange1, Indentation = "  " });
                     break;
             }
         }
