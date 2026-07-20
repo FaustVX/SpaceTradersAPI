@@ -298,5 +298,12 @@ public record class AccountAgent(string Name, string Token) : IAccount
             (null, bool c) => $$"""{"fromCargo":"{{(c ? "true" : "false")}}"}""",
         })
         .MapInitAsync(agent);
+
+        public Task<Responses.Result<Models.V2.Market>> GetMarket(string systemSymbol, string waypointSymbol)
+        => agent.Account.Accounts.SendAsyncData<Models.V2.Market>(HttpMethod.Get, $"/systems/{systemSymbol}/waypoints/{waypointSymbol}/market", agent.AgentToken)
+        .MapInitAsync(agent.Account.Accounts);
+
+        public Task<Responses.Result<Models.V2.Market>> GetMarket(Models.V2.WaypointSymbol waypointSymbol)
+        => GetMarket(waypointSymbol.System.ToString(), waypointSymbol.ToString());
     }
 }

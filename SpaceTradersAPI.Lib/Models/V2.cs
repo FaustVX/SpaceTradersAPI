@@ -8,7 +8,7 @@ namespace SpaceTradersAPI.Lib.Models;
 public static partial class V2
 {
     [JsonConverter(typeof(JsonConverter))]
-    public readonly struct WaypointSymbol : IEquatable<WaypointSymbol>, IParsable<WaypointSymbol>
+    public readonly struct WaypointSymbol : IEquatable<WaypointSymbol>, IParsable<WaypointSymbol>, IInitWith<WaypointSymbol, Account>
     {
         private class JsonConverter : JsonConverter<WaypointSymbol>
         {
@@ -85,7 +85,7 @@ public static partial class V2
     }
 
     [JsonConverter(typeof(JsonConverter))]
-    public readonly struct SystemSymbol : IEquatable<SystemSymbol>, IParsable<SystemSymbol>
+    public readonly struct SystemSymbol : IEquatable<SystemSymbol>, IParsable<SystemSymbol>, IInitWith<SystemSymbol, Account>
     {
         private class JsonConverter : JsonConverter<SystemSymbol>
         {
@@ -309,7 +309,6 @@ public static partial class V2
 
         [JsonIgnore]
         public AccountAgent AccountAgent { set => _accountAgent ??= value; }
-        public AccountAgent GetAgent() => _accountAgent;
 
         public Ship InitWith(AccountAgent agent)
         => this with { Nav = Nav.InitWith(agent.Account.Accounts), AccountAgent = agent };
@@ -554,4 +553,27 @@ public static partial class V2
         public RefuelShip InitWith(AccountAgent agent)
         => this with { Agent = Agent.InitWith(agent) };
     }
+
+    public record class Market(WaypointSymbol Symbol, TradeGood[] Exports, TradeGood[] Imports, TradeGood[] Exchange, MarketTransaction[]? Transactions, MarketTradeGood[]? TradeGoods)
+    : IInitWith<Market, Account>
+    {
+        public Market InitWith(Account account)
+        {
+            var market = this with { Symbol = Symbol.InitWith(account) };
+            foreach (ref var transaction in market.Transactions.AsSpan())
+                transaction = transaction.InitWith(account);
+            return market;
+        }
+    }
+
+    public record class TradeGood(TradeSymbol Symbol, string Name, string Description);
+
+    public record class MarketTransaction(WaypointSymbol WaypointSymbol, string ShipSymbol, TradeSymbol TradeSymbol, TransactionType Type, int Units, int PricePerUnit, int TotalPrice, DateTimeOffset Timestamp)
+    : IInitWith<MarketTransaction, Account>
+    {
+        public MarketTransaction InitWith(Account account)
+        => this with { WaypointSymbol = WaypointSymbol.InitWith(account) };
+    }
+
+    public record class MarketTradeGood(TradeSymbol Symbol, MarketTradeType Type, int TradeVolume, SupplyLevel Supply, ActivityLevel? Activity, int PurchasePrice, int SellPrice);
 }

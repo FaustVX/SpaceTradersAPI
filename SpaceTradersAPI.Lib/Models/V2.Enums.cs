@@ -521,4 +521,28 @@ partial class V2
         Sell,
     }
 
+    public enum MarketTradeType
+    {
+        Export,
+        Import,
+        Exchange,
+    }
+
+    public enum SupplyLevel
+    {
+        Scarce,
+        Limited,
+        Moderate,
+        High,
+        Abundant,
+    }
+
+    public enum ActivityLevel
+    {
+        Weak,
+        Growing,
+        Strong,
+        Restricted,
+    }
+
 }

@@ -290,10 +290,13 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
             Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetAgent());
             break;
         case ["contract", .. var contract]:
-        await ParseContract(contract, [..previousCommands, "contract"]);
+            await ParseContract(contract, [..previousCommands, "contract"]);
+            break;
+        case ["market", .. var market]:
+            await ParseMarket(market, [..previousCommands, "market"]);
             break;
         case [] or ["--help"] or _:
-            Console.WriteInfo($"{previousCommands.Concat()} [ship | server | way[point] | system | agent | contract | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [ship | server | way[point] | system | agent | contract | market | --help]");
             break;
     }
 
@@ -359,6 +362,25 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
                 break;
         }
     }
+
+    async Task ParseMarket(string[] selection, string[] previousCommands)
+    {
+        switch (selection)
+        {
+            case ["--help"]:
+                goto HELP;
+            case []:
+                var w = accounts.Selected.SelectedAgent.SelectedShip.Nav.WaypointSymbol;
+                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetMarket(w));
+                break;
+            case [var waypoint] when V2.WaypointSymbol.TryParse(waypoint, default, out var wp):
+                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetMarket(wp));
+                break;
+            default: HELP:
+                Console.WriteInfo($"{previousCommands.Concat()} [<waypoint> | --help]");
+                break;
+        }
+    }
 }
 
 async Task ParseRegister(string[] selection, string[] previousCommands)
@@ -378,7 +400,7 @@ async Task ParseContract(string[] selection, string[] previousCommands)
 {
     switch (selection)
     {
-        case ["negociate"]:
+        case ["nego" or "negociate"]:
             Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.NegociateContract());
             break;
         case ["accept", .. var accept]:
@@ -394,7 +416,7 @@ async Task ParseContract(string[] selection, string[] previousCommands)
             await ParseDeliver(accept, [..previousCommands, "deliver"]);
             break;
         case [] or ["--help"] or _:
-            Console.WriteInfo($"{previousCommands.Concat()} [negociate | accept | fulfill | info | deliver | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [nego[ciate] | accept | fulfill | info | deliver | --help]");
             break;
     }
 
@@ -560,7 +582,7 @@ static FileInfo ReadFile()
 
 static class Ext
 {
-    private static readonly JsonSerializerOptions _jsonSerializerOptions = new() { Converters = { new JsonStringEnumConverter() } };
+    private static readonly JsonSerializerOptions _jsonSerializerOptions = new() { Converters = { new JsonStringEnumConverter() }, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
     extension(string[] strings)
     {
