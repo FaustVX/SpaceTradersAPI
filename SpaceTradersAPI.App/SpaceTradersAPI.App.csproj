@@ -12,4 +12,9 @@
     <ProjectReference Include="..\SpaceTradersAPI.Lib\SpaceTradersAPI.Lib.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.57.2" />
+    <PackageReference Include="Spectre.Console.Json" Version="0.57.2" />
+  </ItemGroup>
+
 </Project>

@@ -3,6 +3,9 @@ using System.Text.Json;
 using SpaceTradersAPI.Lib;
 using SpaceTradersAPI.Lib.Models;
 using SpaceTradersAPI.Lib.Responses;
+using Spectre.Console;
+using Spectre.Console.Json;
+using Spectre.Console.Rendering;
 
 var accounts = await ReadAccounts(ReadFile());
 
@@ -587,7 +590,17 @@ static class Ext
         => Console.WriteLine(value);
 
         public static void WriteValue<T>(T value)
-        => Console.WriteValue(JsonSerializer.Serialize(value));
+        {
+            switch (value)
+            {
+                case string s:
+                    Console.WriteValue(s);
+                    break;
+                default:
+                    AnsiConsole.WriteLine(new JsonText(JsonSerializer.Serialize(value)) { Indentation = "  " });
+                    break;
+            };
+        }
 
         public static void WriteError(string value)
         {
@@ -598,13 +611,32 @@ static class Ext
 
         public static void WriteError<T>(T value)
         where T : notnull
-        => Console.WriteError(value.GetType() == typeof(T) ? JsonSerializer.Serialize(value) : JsonSerializer.Serialize(value, value.GetType()));
+        {
+            switch (value)
+            {
+                case string s:
+                    Console.WriteError(s);
+                    break;
+                default:
+                    AnsiConsole.WriteLine(new JsonText(value.GetType() == typeof(T) ? JsonSerializer.Serialize(value) : JsonSerializer.Serialize(value, value.GetType())) { MemberStyle = Color.Orange1, Indentation = "  " });
+                    break;
+            }
+        }
 
         public static void WriteInfo(string value)
         {
             (Console.ForegroundColor, var fore) = (ConsoleColor.Blue, Console.ForegroundColor);
             Console.WriteLine(value);
             Console.ForegroundColor = fore;
+        }
+    }
+
+    extension(AnsiConsole)
+    {
+        public static void WriteLine(IRenderable renderable)
+        {
+            AnsiConsole.Write(renderable);
+            AnsiConsole.WriteLine();
         }
     }
 }
