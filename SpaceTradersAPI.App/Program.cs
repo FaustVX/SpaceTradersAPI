@@ -33,13 +33,13 @@ while(!Console.IsInputRedirected || Console.In.Peek() is not -1)
                 Environment.Exit(0);
                 break;
             case [] or ["--help"] or _:
-                Console.WriteLine("[sel[ect] | list | info | register | contract | ship | quit | --help]");
+                Console.WriteInfo("[sel[ect] | list | info | register | contract | ship | quit | --help]");
                 break;
         }
     }
     catch (Exception ex)
     {
-        Console.WriteLine(ex.Message);
+        Console.WriteError(ex.Message);
     }
 
 void ParseSelect(string[] selection, string[] previousCommands)
@@ -56,7 +56,7 @@ void ParseSelect(string[] selection, string[] previousCommands)
             ParseShip(ship, [..previousCommands, "ship"]);
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [account | agent | ship | --help]");
             break;
     }
 
@@ -70,7 +70,7 @@ void ParseSelect(string[] selection, string[] previousCommands)
                 accounts.Selected = AssignAccount(accounts, name);
                 break;
             case [] or _: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<accountName> | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<accountName> | --help]");
                 break;
         }
 
@@ -81,9 +81,7 @@ void ParseSelect(string[] selection, string[] previousCommands)
                 if (a.Name == name)
                     return a;
             }
-            (Console.ForegroundColor, var fore) = (ConsoleColor.Red, Console.ForegroundColor);
-            Console.WriteLine($"Unknown account <{name}>");
-            Console.ForegroundColor = fore;
+            Console.WriteError($"Unknown account <{name}>");
             return accounts.Selected;
         }
     }
@@ -98,7 +96,7 @@ void ParseSelect(string[] selection, string[] previousCommands)
                 accounts.Selected.SelectedAgent = AssignAgent(accounts, name);
                 break;
             case [] or _: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<agentName> | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<agentName> | --help]");
                 break;
         }
 
@@ -109,9 +107,7 @@ void ParseSelect(string[] selection, string[] previousCommands)
                 if (a.Name == name)
                     return a;
             }
-            (Console.ForegroundColor, var fore) = (ConsoleColor.Red, Console.ForegroundColor);
-            Console.WriteLine($"Unknown agent <{name}>");
-            Console.ForegroundColor = fore;
+            Console.WriteError($"Unknown agent <{name}>");
             return accounts.Selected.SelectedAgent;
         }
     }
@@ -126,7 +122,7 @@ void ParseSelect(string[] selection, string[] previousCommands)
                 accounts.Selected.SelectedAgent.SelectedShip = AssignShip(accounts, name);
                 break;
             case [] or _: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<shipName> | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<shipName> | --help]");
                 break;
         }
 
@@ -134,9 +130,7 @@ void ParseSelect(string[] selection, string[] previousCommands)
         {
             if (accounts.Selected.SelectedAgent.Ships.TryGetValue(name, out var ship))
                 return ship;
-            (Console.ForegroundColor, var fore) = (ConsoleColor.Red, Console.ForegroundColor);
-            Console.WriteLine($"Unknown ship <{name}>");
-            Console.ForegroundColor = fore;
+            Console.WriteError($"Unknown ship <{name}>");
             return accounts.Selected.SelectedAgent.SelectedShip;
         }
     }
@@ -159,16 +153,16 @@ async Task ParseList(string[] selection, string[] previousCommands)
             await ParseFactions(factions, [..previousCommands, "factions"]);
             break;
         case ["systems"]:
-            await accounts.API.ListSystems().Execute(Console.WriteLine, Console.WriteLine);
+            await accounts.API.ListSystems().Execute(Console.WriteValue, Console.WriteError);
             break;
         case [("way" or "waypoint") and var wp, .. var waypoint]:
             await ParseWaypointsInSystem(waypoint, [..previousCommands, wp]);
             break;
         case ["contracts"]:
-            await accounts.Selected.SelectedAgent.API.ListMyContracts().Execute(c => Console.WriteLine($"Agent: {(c.Id == accounts.Selected.SelectedAgent.SelectedContract?.Id ? '*' : ' ')}{c}"), Console.WriteLine);
+            await accounts.Selected.SelectedAgent.API.ListMyContracts().Execute(c => Console.WriteLine($"Agent: {(c.Id == accounts.Selected.SelectedAgent.SelectedContract?.Id ? '*' : ' ')}{c}"), Console.WriteError);
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [account | agent | ship | factions | systems | way[point] | contracts | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [account | agent | ship | factions | systems | way[point] | contracts | --help]");
             break;
     }
 
@@ -181,7 +175,7 @@ async Task ParseList(string[] selection, string[] previousCommands)
                     Console.WriteLine($"Account: {(a.Name == accounts.Selected?.Name ? '*' : ' ')}{a.Name}");
                 break;
             case ["--help"] or _:
-                Console.WriteLine($"{previousCommands.Concat()} [--help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [--help]");
                 break;
         }
     }
@@ -191,14 +185,14 @@ async Task ParseList(string[] selection, string[] previousCommands)
         switch (agent)
         {
             case ["public"]:
-                await accounts.API.ListPublicAgents().Execute(Console.WriteLine, Console.WriteLine);
+                await accounts.API.ListPublicAgents().Execute(Console.WriteValue, Console.WriteError);
                 break;
             case []:
                 foreach (var a in accounts.Selected.Agents)
                     Console.WriteLine($"Agent: {(a.Name == accounts.Selected.SelectedAgent?.Name ? '*' : ' ')}{a.Name}");
                 break;
             case ["--help"] or _:
-                Console.WriteLine($"{previousCommands.Concat()} [public | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [public | --help]");
                 break;
         }
     }
@@ -212,7 +206,7 @@ async Task ParseList(string[] selection, string[] previousCommands)
                     Console.WriteLine($"Ship: {(a.Key == accounts.Selected.SelectedAgent.SelectedShip?.Symbol ? '*' : ' ')}{a.Key}");
                 break;
             case ["--help"] or _:
-                Console.WriteLine($"{previousCommands.Concat()} [--help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [--help]");
                 break;
         }
     }
@@ -222,13 +216,13 @@ async Task ParseList(string[] selection, string[] previousCommands)
         switch (factions)
         {
             case ["public"]:
-                await accounts.API.ListFactions().Execute(Console.WriteLine, Console.WriteLine);
+                await accounts.API.ListFactions().Execute(Console.WriteValue, Console.WriteError);
                 break;
             case []:
-                await accounts.Selected.SelectedAgent.API.GetMyFactions().Execute(Console.WriteLine, Console.WriteLine);
+                await accounts.Selected.SelectedAgent.API.GetMyFactions().Execute(Console.WriteValue, Console.WriteError);
                 break;
             case ["--help"] or _:
-                Console.WriteLine($"{previousCommands.Concat()} [public | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [public | --help]");
                 break;
         }
     }
@@ -240,19 +234,19 @@ async Task ParseList(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case [var system] when V2.SystemSymbol.TryParse(system, default, out var sys):
-                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts)).Execute(Console.WriteLine, Console.WriteLine);
+                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts)).Execute(Console.WriteValue, Console.WriteError);
                 break;
             case [var system, var type] when V2.SystemSymbol.TryParse(system, default, out var sys) && Enum.TryParse<V2.WaypointType>(type, out var ty):
-                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty).Execute(Console.WriteLine, Console.WriteLine);
+                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty).Execute(Console.WriteValue, Console.WriteError);
                 break;
             case [var system, var type, .. var traits] when V2.SystemSymbol.TryParse(system, default, out var sys) && Enum.TryParse<V2.WaypointType>(type, out var ty) && TryParseTraits(traits, out var tr):
-                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty, tr).Execute(Console.WriteLine, Console.WriteLine);
+                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty, tr).Execute(Console.WriteValue, Console.WriteError);
                 break;
             case [var system, .. var traits] when V2.SystemSymbol.TryParse(system, default, out var sys) && TryParseTraits(traits, out var tr):
-                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), traits: tr).Execute(Console.WriteLine, Console.WriteLine);
+                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), traits: tr).Execute(Console.WriteValue, Console.WriteError);
                 break;
             case [] or ["--help"] or _: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<system> [<type>] [<trailt...>]| --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<system> [<type>] [<trailt...>]| --help]");
                 break;
         }
 
@@ -280,7 +274,7 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
             await ParseShip(ship, [..previousCommands, "ship"]);
             break;
         case ["server"]:
-            Console.WriteLine(await accounts.API.GetServerStatus());
+            Console.WriteValue(await accounts.API.GetServerStatus());
             break;
         case [("way" or "waypoint") and var wp, .. var waypoint]:
             await ParseWaypoint(waypoint, [..previousCommands, wp]);
@@ -289,13 +283,13 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
             await ParseSystem(system, [..previousCommands, "system"]);
             break;
         case ["agent"]:
-            Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetAgent());
+            Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetAgent());
             break;
         case ["contract", .. var contract]:
         await ParseContract(contract, [..previousCommands, "contract"]);
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [ship | server | way[point] | system | agent | contract | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [ship | server | way[point] | system | agent | contract | --help]");
             break;
     }
 
@@ -306,13 +300,13 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case []:
-                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.UpdateFromServer());
+                Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.UpdateFromServer());
                 break;
             case [var shipName]:
-                Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetShip(shipName));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetShip(shipName));
                 break;
             default: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<shipName> | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<shipName> | --help]");
                 break;
         }
     }
@@ -324,10 +318,10 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case [var waypoint] when V2.WaypointSymbol.TryParse(waypoint, default, out var wp):
-                Console.WriteLine(await wp.InitWith(accounts).GetWaypointData());
+                Console.WriteValue(await wp.InitWith(accounts).GetWaypointData());
                 break;
             case [] or _: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<waypoint> | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<waypoint> | --help]");
                 break;
         }
     }
@@ -339,10 +333,10 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case [var system] when V2.SystemSymbol.TryParse(system, default, out var wp):
-                Console.WriteLine(await accounts.API.GetSystem(wp.InitWith(accounts)));
+                Console.WriteValue(await accounts.API.GetSystem(wp.InitWith(accounts)));
                 break;
             case [] or _: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<system> | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<system> | --help]");
                 break;
         }
     }
@@ -354,10 +348,10 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case [var id]:
-                Console.WriteLine(await accounts.Selected.SelectedAgent.API.GetContract(id));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetContract(id));
                 break;
             case [] or _: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<contractId> | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<contractId> | --help]");
                 break;
         }
     }
@@ -368,10 +362,10 @@ async Task ParseRegister(string[] selection, string[] previousCommands)
     switch (selection)
     {
         case ["agent", var name, var faction] when Enum.TryParse<V2.FactionSymbol>(faction, out var fac):
-            Console.WriteLine(await accounts.Selected.API.RegisterAgent(name, fac));
+            Console.WriteValue(await accounts.Selected.API.RegisterAgent(name, fac));
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [agent <name> <faction> | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [agent <name> <faction> | --help]");
             break;
     }
 }
@@ -381,7 +375,7 @@ async Task ParseContract(string[] selection, string[] previousCommands)
     switch (selection)
     {
         case ["negociate"]:
-            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.NegociateContract());
+            Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.NegociateContract());
             break;
         case ["accept", .. var accept]:
             await ParseAccept(accept, [..previousCommands, "accept"], accounts.Selected.SelectedAgent.API.AcceptContract);
@@ -396,7 +390,7 @@ async Task ParseContract(string[] selection, string[] previousCommands)
             await ParseDeliver(accept, [..previousCommands, "deliver"]);
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [negociate | accept | fulfill | info | deliver | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [negociate | accept | fulfill | info | deliver | --help]");
             break;
     }
 
@@ -407,13 +401,13 @@ async Task ParseContract(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case [var id]:
-                Console.WriteLine(await func(id));
+                Console.WriteValue(await func(id));
                 break;
             case [] when accounts.Selected.SelectedAgent.SelectedContract is { Id: var id }:
-                Console.WriteLine(await func(id));
+                Console.WriteValue(await func(id));
                 break;
             case [] or _: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<contractId> | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<contractId> | --help]");
                 break;
         }
     }
@@ -426,13 +420,13 @@ async Task ParseContract(string[] selection, string[] previousCommands)
                 goto HELP;
             case [var id, var trade, var units] when Enum.TryParse<V2.TradeSymbol>(trade, out var tr) && int.TryParse(units, out var un):
                 var contract = accounts.Selected.SelectedAgent.SelectedContract!;
-                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.DeliverCargoToContract(contract, tr, un));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.DeliverCargoToContract(contract, tr, un));
                 break;
             case [var trade, var units] when accounts.Selected.SelectedAgent.SelectedContract is {} c && Enum.TryParse<V2.TradeSymbol>(trade, out var tr) && int.TryParse(units, out var un):
-                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.DeliverCargoToContract(c, tr, un));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.DeliverCargoToContract(c, tr, un));
                 break;
             case [] or _: HELP:
-                Console.WriteLine($"{previousCommands.Concat()} [<contractId> <trade> <units> | --help]");
+                Console.WriteInfo($"{previousCommands.Concat()} [<contractId> <trade> <units> | --help]");
                 break;
         }
     }
@@ -443,16 +437,16 @@ async Task ParseShip(string[] selection, string[] previousCommands)
     switch (selection)
     {
         case ["dock"]:
-            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Dock());
+            Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.Dock());
             break;
         case ["orbit"]:
-            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Orbit());
+            Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.Orbit());
             break;
         case ["chart"]:
-            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.CreateChart());
+            Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.CreateChart());
             break;
         case ["info"]:
-            Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.UpdateFromServer());
+            Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.UpdateFromServer());
             break;
         case [("nav" or "navigate") and var navigate, .. var nav]:
             await ParseNavigate(nav, [..previousCommands, navigate]);
@@ -461,7 +455,7 @@ async Task ParseShip(string[] selection, string[] previousCommands)
             await ParseRefuel(nav, [..previousCommands, "refuel"]);
             break;
         case [] or ["--help"] or _:
-            Console.WriteLine($"{previousCommands.Concat()} [dock | orbit | chart | info | nav[igate] | refuel | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [dock | orbit | chart | info | nav[igate] | refuel | --help]");
             break;
     }
 
@@ -472,13 +466,13 @@ async Task ParseShip(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case [var waypoint] when V2.WaypointSymbol.TryParse(waypoint, default, out var wp):
-                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Navigate(wp));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.Navigate(wp));
                 break;
             case [var local]:
-                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Navigate(accounts.Selected.SelectedAgent.SelectedShip.Nav.WaypointSymbol.InitWith(accounts) with { Waypoint = local }));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.Navigate(accounts.Selected.SelectedAgent.SelectedShip.Nav.WaypointSymbol.InitWith(accounts) with { Waypoint = local }));
                 break;
         case [] or _: HELP:
-            Console.WriteLine($"{previousCommands.Concat()} [<waypoint> | <localWaypoint> | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [<waypoint> | <localWaypoint> | --help]");
             break;
         }
     }
@@ -490,25 +484,25 @@ async Task ParseShip(string[] selection, string[] previousCommands)
             case ["--help"]:
                 goto HELP;
             case []:
-                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Refuel());
+                Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.Refuel());
                 break;
             case ["fromCargo"]:
                 if (accounts.Selected.SelectedAgent.SelectedShip.Cargo.Get(V2.TradeSymbol.Fuel) is {} item0)
-                    Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Refuel(item0));
+                    Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.Refuel(item0));
                 else
-                    Console.WriteLine("Cargo doesn't contains enough Fuel");
+                    Console.WriteError("Cargo does not contains enough Fuel");
                 break;
             case [var units] when int.TryParse(units, out var un):
-                Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Refuel(un));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.Refuel(un));
                 break;
             case [var units, "fromCargo"] when int.TryParse(units, out var un):
                 if (accounts.Selected.SelectedAgent.SelectedShip.Cargo.Get(V2.TradeSymbol.Fuel, un) is {} item1)
-                    Console.WriteLine(await accounts.Selected.SelectedAgent.SelectedShip.Refuel(item1));
+                    Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.Refuel(item1));
                 else
-                    Console.WriteLine("Cargo doesn't contains enough Fuel");
+                    Console.WriteError("Cargo does not contains enough Fuel");
                 break;
         case [] or _: HELP:
-            Console.WriteLine($"{previousCommands.Concat()} [[<units>] [fromCargo] | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [[<units>] [fromCargo] | --help]");
             break;
         }
     }
@@ -519,7 +513,7 @@ static async Task<Account> ReadAccounts(FileInfo accountsFile)
     using var stream = accountsFile.OpenRead();
     var accounts = JsonSerializer.Deserialize<Account>(stream, new JsonSerializerOptions() { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true, })!;
     var status = await accounts.API.GetServerStatus().ValueOrThrowAsync();
-    Console.WriteLine(status);
+    Console.WriteValue(status);
     if (status.Version != "v2.3.0")
         throw new Exception($"Incompatible server version. Should be v2.3.0 but server is {status.Version}");
     foreach (var account in accounts.Accounts)
@@ -574,6 +568,43 @@ static class Ext
         {
             Console.Write(prompt);
             return Console.ReadLine()!;
+        }
+
+        public static void WriteValue<T>(Result<T> value)
+        {
+            switch (value)
+            {
+                case T item:
+                    Console.WriteValue(item);
+                    break;
+                case Error err:
+                    Console.WriteError(err);
+                    break;
+            }
+        }
+
+        public static void WriteValue(string value)
+        => Console.WriteLine(value);
+
+        public static void WriteValue<T>(T value)
+        => Console.WriteValue(JsonSerializer.Serialize(value));
+
+        public static void WriteError(string value)
+        {
+            (Console.ForegroundColor, var fore) = (ConsoleColor.Red, Console.ForegroundColor);
+            Console.WriteLine(value);
+            Console.ForegroundColor = fore;
+        }
+
+        public static void WriteError<T>(T value)
+        where T : notnull
+        => Console.WriteError(value.GetType() == typeof(T) ? JsonSerializer.Serialize(value) : JsonSerializer.Serialize(value, value.GetType()));
+
+        public static void WriteInfo(string value)
+        {
+            (Console.ForegroundColor, var fore) = (ConsoleColor.Blue, Console.ForegroundColor);
+            Console.WriteLine(value);
+            Console.ForegroundColor = fore;
         }
     }
 }
