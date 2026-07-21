@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Json.More;
+using Json.Path;
 using SpaceTradersAPI.Lib;
 using SpaceTradersAPI.Lib.Models;
 using SpaceTradersAPI.Lib.Responses;
@@ -142,6 +144,7 @@ void ParseSelect(string[] selection, string[] previousCommands)
 
 async Task ParseList(string[] selection, string[] previousCommands)
 {
+    var propertyPath = GetPropertyPath(ref selection) ?? JsonPath.Root;
     switch (selection)
     {
         case ["account", .. var account]:
@@ -154,19 +157,19 @@ async Task ParseList(string[] selection, string[] previousCommands)
             ParseShip(ship, [..previousCommands, "ship"]);
             break;
         case ["factions", .. var factions]:
-            await ParseFactions(factions, [..previousCommands, "factions"]);
+            await ParseFactions(factions, [..previousCommands, "factions"], propertyPath);
             break;
         case ["systems"]:
-            await accounts.API.ListSystems().Execute(Console.WriteValue, Console.WriteError);
+            Console.WriteValue(await accounts.API.ListSystems().CombineToArray(), propertyPath);
             break;
         case [("way" or "waypoint") and var wp, .. var waypoint]:
-            await ParseWaypointsInSystem(waypoint, [..previousCommands, wp]);
+            await ParseWaypointsInSystem(waypoint, [..previousCommands, wp], propertyPath);
             break;
         case ["contracts"]:
             await accounts.Selected.SelectedAgent.API.ListMyContracts().Execute(c => Console.WriteLine($"Agent: {(c.Id == accounts.Selected.SelectedAgent.SelectedContract?.Id ? '*' : ' ')}{c}"), Console.WriteError);
             break;
         case [] or ["--help"] or _:
-            Console.WriteInfo($"{previousCommands.Concat()} [account | agent | ship | factions | systems | way[point] | contracts | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [account | agent | ship | factions | systems | way[point] | contracts | --help] [--prop[erty] <propertyPath>]");
             break;
     }
 
@@ -215,15 +218,15 @@ async Task ParseList(string[] selection, string[] previousCommands)
         }
     }
 
-    async Task ParseFactions(string[] factions, string[] previousCommands)
+    async Task ParseFactions(string[] factions, string[] previousCommands, JsonPath propertyPath)
     {
         switch (factions)
         {
             case ["public"]:
-                await accounts.API.ListFactions().Execute(Console.WriteValue, Console.WriteError);
+                Console.WriteValue(await accounts.API.ListFactions().CombineToArray(), propertyPath);
                 break;
             case []:
-                await accounts.Selected.SelectedAgent.API.GetMyFactions().Execute(Console.WriteValue, Console.WriteError);
+                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetMyFactions().CombineToArray(), propertyPath);
                 break;
             case ["--help"] or _:
                 Console.WriteInfo($"{previousCommands.Concat()} [public | --help]");
@@ -231,23 +234,23 @@ async Task ParseList(string[] selection, string[] previousCommands)
         }
     }
 
-    async Task ParseWaypointsInSystem(string[] waypoint, string[] previousCommands)
+    async Task ParseWaypointsInSystem(string[] waypoint, string[] previousCommands, JsonPath propertyPath)
     {
         switch (waypoint)
         {
             case ["--help"]:
                 goto HELP;
             case [var system] when V2.SystemSymbol.TryParse(system, default, out var sys):
-                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts)).Execute(Console.WriteValue, Console.WriteError);
+                Console.WriteValue(await accounts.API.ListWaypointInSystem(sys.InitWith(accounts)).CombineToArray(), propertyPath);
                 break;
             case [var system, var type] when V2.SystemSymbol.TryParse(system, default, out var sys) && Enum.TryParse<V2.WaypointType>(type, out var ty):
-                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty).Execute(Console.WriteValue, Console.WriteError);
+                Console.WriteValue(await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty).CombineToArray(), propertyPath);
                 break;
             case [var system, var type, .. var traits] when V2.SystemSymbol.TryParse(system, default, out var sys) && Enum.TryParse<V2.WaypointType>(type, out var ty) && TryParseTraits(traits, out var tr):
-                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty, tr).Execute(Console.WriteValue, Console.WriteError);
+                Console.WriteValue(await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), ty, tr).CombineToArray(), propertyPath);
                 break;
             case [var system, .. var traits] when V2.SystemSymbol.TryParse(system, default, out var sys) && TryParseTraits(traits, out var tr):
-                await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), traits: tr).Execute(Console.WriteValue, Console.WriteError);
+                Console.WriteValue(await accounts.API.ListWaypointInSystem(sys.InitWith(accounts), traits: tr).CombineToArray(), propertyPath);
                 break;
             case [] or ["--help"] or _: HELP:
                 Console.WriteInfo($"{previousCommands.Concat()} [<system> [<type>] [<trailt...>]| --help]");
@@ -272,45 +275,46 @@ async Task ParseList(string[] selection, string[] previousCommands)
 
 async Task ParseInfo(string[] selection, string[] previousCommands)
 {
+    var propertyPath = GetPropertyPath(ref selection);
     switch (selection)
     {
         case ["ship", .. var ship]:
-            await ParseShip(ship, [..previousCommands, "ship"]);
+            await ParseShip(ship, [..previousCommands, "ship"], propertyPath);
             break;
         case ["server"]:
-            Console.WriteValue(await accounts.API.GetServerStatus());
+            Console.WriteValue(await accounts.API.GetServerStatus(), propertyPath);
             break;
         case [("way" or "waypoint") and var wp, .. var waypoint]:
-            await ParseWaypoint(waypoint, [..previousCommands, wp]);
+            await ParseWaypoint(waypoint, [..previousCommands, wp], propertyPath);
             break;
         case ["system", .. var system]:
-            await ParseSystem(system, [..previousCommands, "system"]);
+            await ParseSystem(system, [..previousCommands, "system"], propertyPath);
             break;
         case ["agent"]:
-            Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetAgent());
+            Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetAgent(), propertyPath);
             break;
         case ["contract", .. var contract]:
-            await ParseContract(contract, [..previousCommands, "contract"]);
+            await ParseContract(contract, [..previousCommands, "contract"], propertyPath);
             break;
         case ["market", .. var market]:
-            await ParseMarket(market, [..previousCommands, "market"]);
+            await ParseMarket(market, [..previousCommands, "market"], propertyPath);
             break;
         case [] or ["--help"] or _:
-            Console.WriteInfo($"{previousCommands.Concat()} [ship | server | way[point] | system | agent | contract | market | --help]");
+            Console.WriteInfo($"{previousCommands.Concat()} [ship | server | way[point] | system | agent | contract | market | --help] [--prop[erty] <propertyPath>]");
             break;
     }
 
-    async Task ParseShip(string[] selection, string[] previousCommands)
+    async Task ParseShip(string[] selection, string[] previousCommands, JsonPath? propertyPath)
     {
         switch (selection)
         {
             case ["--help"]:
                 goto HELP;
             case []:
-                Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.UpdateFromServer());
+                Console.WriteValue(await accounts.Selected.SelectedAgent.SelectedShip.UpdateFromServer(), propertyPath);
                 break;
             case [var shipName]:
-                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetShip(shipName));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetShip(shipName), propertyPath);
                 break;
             default: HELP:
                 Console.WriteInfo($"{previousCommands.Concat()} [<shipName> | --help]");
@@ -318,14 +322,14 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
         }
     }
 
-    async Task ParseWaypoint(string[] selection, string[] previousCommands)
+    async Task ParseWaypoint(string[] selection, string[] previousCommands, JsonPath? propertyPath)
     {
         switch (selection)
         {
             case ["--help"]:
                 goto HELP;
             case [var waypoint] when V2.WaypointSymbol.TryParse(waypoint, default, out var wp):
-                Console.WriteValue(await wp.InitWith(accounts).GetWaypointData());
+                Console.WriteValue(await wp.InitWith(accounts).GetWaypointData(), propertyPath);
                 break;
             case [] or _: HELP:
                 Console.WriteInfo($"{previousCommands.Concat()} [<waypoint> | --help]");
@@ -333,14 +337,14 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
         }
     }
 
-    async Task ParseSystem(string[] selection, string[] previousCommands)
+    async Task ParseSystem(string[] selection, string[] previousCommands, JsonPath? propertyPath)
     {
         switch (selection)
         {
             case ["--help"]:
                 goto HELP;
             case [var system] when V2.SystemSymbol.TryParse(system, default, out var wp):
-                Console.WriteValue(await accounts.API.GetSystem(wp.InitWith(accounts)));
+                Console.WriteValue(await accounts.API.GetSystem(wp.InitWith(accounts)), propertyPath);
                 break;
             case [] or _: HELP:
                 Console.WriteInfo($"{previousCommands.Concat()} [<system> | --help]");
@@ -348,14 +352,14 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
         }
     }
 
-    async Task ParseContract(string[] selection, string[] previousCommands)
+    async Task ParseContract(string[] selection, string[] previousCommands, JsonPath? propertyPath)
     {
         switch (selection)
         {
             case ["--help"]:
                 goto HELP;
             case [var id]:
-                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetContract(id));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetContract(id), propertyPath);
                 break;
             case [] or _: HELP:
                 Console.WriteInfo($"{previousCommands.Concat()} [<contractId> | --help]");
@@ -363,7 +367,7 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
         }
     }
 
-    async Task ParseMarket(string[] selection, string[] previousCommands)
+    async Task ParseMarket(string[] selection, string[] previousCommands, JsonPath? propertyPath)
     {
         switch (selection)
         {
@@ -371,15 +375,27 @@ async Task ParseInfo(string[] selection, string[] previousCommands)
                 goto HELP;
             case []:
                 var w = accounts.Selected.SelectedAgent.SelectedShip.Nav.WaypointSymbol;
-                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetMarket(w));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetMarket(w), propertyPath);
                 break;
             case [var waypoint] when V2.WaypointSymbol.TryParse(waypoint, default, out var wp):
-                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetMarket(wp));
+                Console.WriteValue(await accounts.Selected.SelectedAgent.API.GetMarket(wp), propertyPath);
                 break;
             default: HELP:
                 Console.WriteInfo($"{previousCommands.Concat()} [<waypoint> | --help]");
                 break;
         }
+    }
+}
+
+static JsonPath? GetPropertyPath(ref string[] selection)
+{
+    switch (selection)
+    {
+        case [.. var sel, "--prop" or "--property", var prop] when JsonPath.TryParse(prop, out var path, new() { TolerateExtraWhitespace = true, AllowInOperator = true, AllowJsonConstructs = true }):
+            selection = sel;
+            return path;
+        default:
+            return null;
     }
 }
 
@@ -611,6 +627,22 @@ static class Ext
             }
         }
 
+        public static void WriteValue<T>(Result<T> value, JsonPath? path)
+        {
+            switch (value)
+            {
+                case T item when path is not null:
+                    Console.WriteValue(item, path);
+                    break;
+                case T item:
+                    Console.WriteValue(item);
+                    break;
+                case Error err:
+                    Console.WriteError(err);
+                    break;
+            }
+        }
+
         public static void WriteValue(string value)
         => Console.WriteLine(value);
 
@@ -623,6 +655,20 @@ static class Ext
                     break;
                 default:
                     AnsiConsole.WriteLine(new JsonText(JsonSerializer.Serialize(value, _jsonSerializerOptions)) { Indentation = "  " });
+                    break;
+            };
+        }
+
+        public static void WriteValue<T>(T value, JsonPath path)
+        {
+            switch (value)
+            {
+                case string s:
+                    Console.WriteValue(s);
+                    break;
+                default:
+                    foreach (var match in path.Evaluate(JsonSerializer.SerializeToNode(value, _jsonSerializerOptions)).Matches)
+                        AnsiConsole.WriteLine(new JsonText(match.Value.AsJsonString(_jsonSerializerOptions)) { Indentation = "  " });
                     break;
             };
         }

@@ -74,6 +74,14 @@ public static class Ext
             }
         }
 
+        public async Task<Result<T[]>> CombineToArray()
+        => await values switch
+        {
+            IAsyncEnumerable<T> v => await v.ToArrayAsync(),
+            Error err => err,
+            _ => throw new UnreachableException(),
+        };
+
         public IAsyncEnumerator<T> GetAsyncEnumerator()
         => values.ValueOrThrowAsync().Result.GetAsyncEnumerator();
     }
